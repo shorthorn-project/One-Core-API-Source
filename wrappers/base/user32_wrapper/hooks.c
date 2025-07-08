@@ -43,51 +43,6 @@ UserSetLastNTError(IN NTSTATUS Status)
     UserSetLastError(RtlNtStatusToDosError(Status));
 }
 
-// BOOL 
-// WINAPI
-// SystemParametersInfoWInternal(
-	// UINT uiAction,
-	// UINT uiParam,
-	// PVOID pvParam,
-	// UINT fWinIni)
-// {
-	// BOOL res;
-	// PBOOL realParam;
-	// // HACK: Qt6.6.1 after WinRT classes defined crashes due to NONCLIENTMETRICS being on NT6 size, so convert to NT5
-	// if ((uiAction == SPI_SETNONCLIENTMETRICS || uiAction == SPI_GETNONCLIENTMETRICS) && ((LPNONCLIENTMETRICSW)pvParam)->cbSize == sizeof(NONCLIENTMETRICSW) + 4) {
-		// // Set size
-		// ((LPNONCLIENTMETRICSW)pvParam)->cbSize -= 4;
-		// res = SystemParametersInfoW(uiAction, sizeof(NONCLIENTMETRICSW), pvParam, fWinIni);
-		// ((LPNONCLIENTMETRICSW)pvParam)->cbSize += 4;
-		// if (res) {
-			 // ((LPNONCLIENTMETRICSW_VISTA)pvParam)->iPaddedBorderWidth = 0;
-		// }
-		// return res;
-	// }	
-	// switch(uiAction)
-    // {
-      // case SPI_GETNONCLIENTMETRICS:
-      // {
-          // LPNONCLIENTMETRICSW lpnclt = (LPNONCLIENTMETRICSW)pvParam;
-		  // lpnclt->cbSize = sizeof(NONCLIENTMETRICSW);
-          // return SystemParametersInfoW(uiAction, lpnclt->cbSize, lpnclt, fWinIni);          
-      // }
-	  // case SPI_SETNONCLIENTMETRICS:
-	  // {
-          // LPNONCLIENTMETRICSW lpnclt = (LPNONCLIENTMETRICSW)pvParam;
-		  // lpnclt->cbSize = sizeof(NONCLIENTMETRICSW);
-          // return SystemParametersInfoW(uiAction, lpnclt->cbSize, lpnclt, fWinIni);  
-	  // }
-	  // case SPI_GETCLIENTAREAANIMATION: // Visual Studio 2012 WPF Designer crashes without this case
-		// realParam = pvParam;
-		// *realParam = TRUE;
-		// return TRUE;  
-	  // default:
-		// return SystemParametersInfoW(uiAction, uiParam, pvParam, fWinIni);
-	// }
-	// return SystemParametersInfoW(uiAction, uiParam, pvParam, fWinIni);
-// }
-
 BOOL 
 WINAPI
 SystemParametersInfoWInternal(

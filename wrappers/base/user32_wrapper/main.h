@@ -657,11 +657,100 @@ typedef struct tagPROCESS_UICONTEXT_INFORMATION {
     DWORD dwFlags; //PROCESS_UI_FLAGS
 } PROCESS_UICONTEXT_INFORMATION, * PPROCESS_UICONTEXT_INFORMATION;
 
+typedef struct {
+    BYTE bWidth;
+    BYTE bHeight;
+    BYTE bColorCount;
+    BYTE bReserved;
+    WORD xHotspot;
+    WORD yHotspot;
+    DWORD dwDIBSize;
+    DWORD dwDIBOffset;
+} CURSORICONFILEDIRENTRY;
+
+typedef struct
+{
+    WORD                idReserved;
+    WORD                idType;
+    WORD                idCount;
+    CURSORICONFILEDIRENTRY  idEntries[1];
+} CURSORICONFILEDIR;
+
+struct cursoricon_frame
+{
+    UINT     width;    /* frame-specific width */
+    UINT     height;   /* frame-specific height */
+    HBITMAP  color;    /* color bitmap */
+    HBITMAP  alpha;    /* pre-multiplied alpha bitmap for 32-bpp icons */
+    HBITMAP  mask;     /* mask bitmap (followed by color for 1-bpp icons) */
+    POINT    hotspot;
+};
+
 struct user_object
 {
     HANDLE             handle;
     enum user_obj_type type;
 };
+
+struct cursoricon_object
+{
+    struct user_object      obj;        /* object header */
+    struct list             entry;      /* entry in shared icons list */
+    ULONG_PTR               param;      /* opaque param used by 16-bit code */
+    HMODULE                 module;     /* module for icons loaded from resources */
+    LPWSTR                  resname;    /* resource name for icons loaded from resources */
+    HRSRC                   rsrc;       /* resource for shared icons */
+    BOOL                    is_icon;    /* whether icon or cursor */
+    BOOL                    is_ani;     /* whether this object is a static cursor or an animated cursor */
+    UINT                    delay;      /* delay between this frame and the next (in jiffies) */
+    POINT                   hotspot;
+};
+
+struct cursoricon_desc
+{
+    UINT flags;
+    UINT num_steps;
+    UINT num_frames;
+    UINT delay;
+    struct cursoricon_frame *frames;
+    DWORD *frame_seq;
+    DWORD *frame_rates;
+    HRSRC rsrc;
+};
+
+typedef struct
+{
+    BYTE   bWidth;
+    BYTE   bHeight;
+    BYTE   bColorCount;
+    BYTE   bReserved;
+} ICONRESDIR;
+
+typedef struct
+{
+    WORD   wWidth;
+    WORD   wHeight;
+} CURSORDIR;
+
+typedef struct
+{   union
+    { ICONRESDIR icon;
+      CURSORDIR  cursor;
+    } ResInfo;
+    WORD   wPlanes;
+    WORD   wBitCount;
+    DWORD  dwBytesInRes;
+    WORD   wResId;
+} CURSORICONDIRENTRY;
+
+typedef struct
+{
+    WORD                idReserved;
+    WORD                idType;
+    WORD                idCount;
+    CURSORICONDIRENTRY  idEntries[1];
+} CURSORICONDIR;
+
 
 void USER_Lock(void);
 void USER_Unlock(void);

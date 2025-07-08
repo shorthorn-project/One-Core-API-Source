@@ -44,7 +44,7 @@ list(APPEND SOURCE
 add_library(user32_wrapper SHARED ${SOURCE})
 set_module_type(user32_wrapper win32dll ENTRYPOINT 0)
 
-target_link_libraries(user32_wrapper wine)
+target_link_libraries(user32_wrapper wine uuid)
 
 add_delay_importlibs(user32_wrapper libpng)
 

@@ -751,7 +751,7 @@
 @ stdcall LoadIconA(long str) #LoadIconAHook
 @ stdcall LoadIconW(long wstr) #LoadIconWHook
 @ stdcall LoadImageA(long str long long long long) #LoadImageAHook
-@ stdcall LoadImageW(long wstr long long long long) #LoadImageWHook
+@ stdcall LoadImageW(long wstr long long long long) LoadImageWHook
 @ stdcall GetUserObjectSecurity (long ptr ptr long ptr) #GetUserObjectSecurityInternal
 @ stdcall SystemParametersInfoA(long long ptr long) SystemParametersInfoAInternal
 @ stdcall SystemParametersInfoW(long long ptr long) SystemParametersInfoWInternal
