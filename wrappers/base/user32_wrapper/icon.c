@@ -22,11 +22,16 @@ Revision History:
 #include <png.h>
 #include <stdlib.h>
 #include <wingdi.h>
+#include <ldrfuncs.h>
 
 #include "wine/exception.h"
 #include "wine/debug.h"
 
 WINE_DEFAULT_DEBUG_CHANNEL(user32);
+
+/* We only use Wide string functions */
+#undef MAKEINTRESOURCE
+#define MAKEINTRESOURCE MAKEINTRESOURCEW
 
 int WINAPI LookupIconIdFromDirectoryExInternal(
   _In_  PBYTE presbits,
@@ -1508,14 +1513,14 @@ static HICON CreateIconFromPngBits(BYTE *data, DWORD size)
     png_ptr = png_create_read_struct(PNG_LIBPNG_VER_STRING, NULL, NULL, NULL);
     if (!png_ptr)
     {
-        OutputDebugStringA("[PNG] Falha ao criar png_struct.\n");
+        DbgPrint("[PNG] Falha ao criar png_struct.\n");
         return NULL;
     }
 
     info_ptr = png_create_info_struct(png_ptr);
     if (!info_ptr)
     {
-        OutputDebugStringA("[PNG] Falha ao criar info_struct.\n");
+        DbgPrint("[PNG] Falha ao criar info_struct.\n");
         png_destroy_read_struct(&png_ptr, NULL, NULL);
         return NULL;
     }
@@ -1538,7 +1543,7 @@ static HICON CreateIconFromPngBits(BYTE *data, DWORD size)
     row_pointers = (png_bytep *)HeapAlloc(GetProcessHeap(), 0, sizeof(png_bytep) * height);
     if (!row_pointers)
     {
-        OutputDebugStringA("[PNG] Falha ao alocar row_pointers.\n");
+        DbgPrint("[PNG] Falha ao alocar row_pointers.\n");
         goto done;
     }
 
@@ -1547,7 +1552,7 @@ static HICON CreateIconFromPngBits(BYTE *data, DWORD size)
         row_pointers[i] = (png_bytep)HeapAlloc(GetProcessHeap(), 0, width * 4);
         if (!row_pointers[i])
         {
-            OutputDebugStringA("[PNG] Falha ao alocar linha do PNG.\n");
+            DbgPrint("[PNG] Falha ao alocar linha do PNG.\n");
             goto done;
         }
     }
@@ -1572,7 +1577,7 @@ static HICON CreateIconFromPngBits(BYTE *data, DWORD size)
 
     if (!hBitmap || !dibBits)
     {
-        OutputDebugStringA("[PNG] Falha ao criar DIBSection.\n");
+        DbgPrint("[PNG] Falha ao criar DIBSection.\n");
         goto done;
     }
 
@@ -1584,7 +1589,7 @@ static HICON CreateIconFromPngBits(BYTE *data, DWORD size)
     hMask = CreateBitmap(width, height, 1, 1, NULL);
     if (!hMask)
     {
-        OutputDebugStringA("[PNG] Falha ao criar máscara.\n");
+        DbgPrint("[PNG] Falha ao criar máscara.\n");
         goto done;
     }
 
@@ -1597,7 +1602,7 @@ static HICON CreateIconFromPngBits(BYTE *data, DWORD size)
     hIcon = CreateIconIndirect(&ii);
     if (!hIcon)
     {
-        OutputDebugStringA("[PNG] CreateIconIndirect falhou.\n");
+        DbgPrint("[PNG] CreateIconIndirect falhou.\n");
     }
 
 done:
@@ -1622,7 +1627,7 @@ done:
 }
 
 // Função hook simulando LoadImageW com suporte a .ico com PNG embutido
-HANDLE LoadImagePng(
+HANDLE LoadImagePngFromFile(
     HINSTANCE hinst,
     LPCWSTR lpszName,
     UINT cxDesired,
@@ -1644,21 +1649,21 @@ HANDLE LoadImagePng(
 
     // if (!(fuLoad & LR_LOADFROMFILE) || !bIcon)
     // {
-        // OutputDebugStringA("[LoadImageW Hook] Chamando LoadImageW original.\n");
+        // DbgPrint("[LoadImageW Hook] Chamando LoadImageW original.\n");
         // return LoadImageW(hinst, lpszName, IMAGE_ICON, cxDesired, cyDesired, fuLoad);
     // }
 
     hFile = CreateFileW(lpszName, GENERIC_READ, FILE_SHARE_READ, NULL, OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL, NULL);
     if (hFile == INVALID_HANDLE_VALUE)
     {
-        OutputDebugStringA("[LoadImageW Hook] Falha ao abrir arquivo.\n");
+        DbgPrint("[LoadImageW Hook] Falha ao abrir arquivo.\n");
         return NULL;
     }
 
     fileSize = GetFileSize(hFile, NULL);
     if (fileSize < ICO_HEADER_SIZE + ICO_ENTRY_SIZE)
     {
-        OutputDebugStringA("[LoadImageW Hook] Arquivo muito pequeno para ser um .ico válido.\n");
+        DbgPrint("[LoadImageW Hook] Arquivo muito pequeno para ser um .ico válido.\n");
         CloseHandle(hFile);
         return NULL;
     }
@@ -1666,7 +1671,7 @@ HANDLE LoadImagePng(
     hMapping = CreateFileMappingW(hFile, NULL, PAGE_READONLY, 0, 0, NULL);
     if (!hMapping)
     {
-        OutputDebugStringA("[LoadImageW Hook] Falha ao criar mapeamento de arquivo.\n");
+        DbgPrint("[LoadImageW Hook] Falha ao criar mapeamento de arquivo.\n");
         CloseHandle(hFile);
         return NULL;
     }
@@ -1674,7 +1679,7 @@ HANDLE LoadImagePng(
     fileData = MapViewOfFile(hMapping, FILE_MAP_READ, 0, 0, 0);
     if (!fileData)
     {
-        OutputDebugStringA("[LoadImageW Hook] Falha ao mapear arquivo.\n");
+        DbgPrint("[LoadImageW Hook] Falha ao mapear arquivo.\n");
         CloseHandle(hMapping);
         CloseHandle(hFile);
         return NULL;
@@ -1684,7 +1689,7 @@ HANDLE LoadImagePng(
     imageOffset = *(DWORD *)(data + ICO_HEADER_SIZE + 12);
     if (imageOffset >= fileSize)
     {
-        OutputDebugStringA("[LoadImageW Hook] Offset inválido para imagem no arquivo .ico.\n");
+        DbgPrint("[LoadImageW Hook] Offset inválido para imagem no arquivo .ico.\n");
         goto cleanup;
     }
 
@@ -1693,14 +1698,14 @@ HANDLE LoadImagePng(
 
     if (imageSize < 8 || memcmp(pngData, ICO_PNG_SIGNATURE, 8) != 0)
     {
-        OutputDebugStringA("[LoadImageW Hook] Imagem não contém assinatura PNG.\n");
+        DbgPrint("[LoadImageW Hook] Imagem não contém assinatura PNG.\n");
         goto cleanup;
     }
 
     hIcon = CreateIconFromPngBits(pngData, imageSize);
     if (!hIcon)
     {
-        OutputDebugStringA("[LoadImageW Hook] Falha ao criar ícone a partir de PNG.\n");
+        DbgPrint("[LoadImageW Hook] Falha ao criar ícone a partir de PNG.\n");
     }
 
 cleanup:
@@ -1709,6 +1714,419 @@ cleanup:
     CloseHandle(hFile);
     return hIcon;
 }
+
+int WINAPI LookupIconIdFromDirectoryExHook(
+  _In_  PBYTE presbits,
+  _In_  BOOL fIcon,
+  _In_  int cxDesired,
+  _In_  int cyDesired,
+  _In_  UINT Flags
+)
+{
+    WORD bppDesired;
+    CURSORICONDIR* dir = (CURSORICONDIR*)presbits;
+    CURSORICONDIRENTRY* entry;
+    int i, numMatch = 0, iIndex = -1;
+    WORD width, height, BitCount = 0;
+    BOOL notPaletted = FALSE;
+    ULONG bestScore = 0xFFFFFFFF, score;
+
+    TRACE("%p, %x, %i, %i, %x.\n", presbits, fIcon, cxDesired, cyDesired, Flags);
+
+    if(!(dir && !dir->idReserved && (dir->idType & 3)))
+    {
+        WARN("Invalid resource.\n");
+        return 0;
+    }
+
+    if(Flags & LR_MONOCHROME)
+        bppDesired = 1;
+    else
+    {
+        HDC icScreen;
+        icScreen = CreateICW(DISPLAYW, NULL, NULL, NULL);
+        if(!icScreen)
+            return FALSE;
+
+        bppDesired = GetDeviceCaps(icScreen, BITSPIXEL);
+        DeleteDC(icScreen);
+    }
+
+    if(!cxDesired)
+        cxDesired = Flags & LR_DEFAULTSIZE ? GetSystemMetrics(fIcon ? SM_CXICON : SM_CXCURSOR) : 256;
+    if(!cyDesired)
+        cyDesired = Flags & LR_DEFAULTSIZE ? GetSystemMetrics(fIcon ? SM_CYICON : SM_CYCURSOR) : 256;
+
+    /* Find the best match for the desired size */
+    for(i = 0; i < dir->idCount; i++)
+    {
+        entry = &dir->idEntries[i];
+        width = fIcon ? entry->ResInfo.icon.bWidth : entry->ResInfo.cursor.wWidth;
+        /* Height is twice as big in cursor resources */
+        height = fIcon ? entry->ResInfo.icon.bHeight : entry->ResInfo.cursor.wHeight/2;
+        /* 0 represents 256 */
+        if(!width) width = 256;
+        if(!height) height = 256;
+        /* Calculate the "score" (lower is better) */
+        score = 2*(abs(width - cxDesired) + abs(height - cyDesired));
+        if( score > bestScore)
+            continue;
+        /* Bigger than requested lowers the score */
+        if(width > cxDesired)
+            score -= width - cxDesired;
+        if(height > cyDesired)
+            score -= height - cyDesired;
+        if(score > bestScore)
+            continue;
+        if(score == bestScore)
+        {
+            if(entry->wBitCount > BitCount)
+                BitCount = entry->wBitCount;
+            numMatch++;
+            continue;
+        }
+        iIndex = i;
+        numMatch = 1;
+        bestScore = score;
+        BitCount = entry->wBitCount;
+    }
+
+    if(numMatch == 1)
+    {
+        /* Only one entry fits the asked dimensions */
+        return dir->idEntries[iIndex].wResId;
+    }
+
+    /* Avoid paletted icons on non-paletted device */
+    if (bppDesired > 8 && BitCount > 8)
+        notPaletted = TRUE;
+
+    BitCount = 0;
+    iIndex = -1;
+    /* Now find the entry with the best depth */
+    for(i = 0; i < dir->idCount; i++)
+    {
+        entry = &dir->idEntries[i];
+        width = fIcon ? entry->ResInfo.icon.bWidth : entry->ResInfo.cursor.wWidth;
+        height = fIcon ? entry->ResInfo.icon.bHeight : entry->ResInfo.cursor.wHeight/2;
+        /* 0 represents 256 */
+        if(!width) width = 256;
+        if(!height) height = 256;
+        /* Check if this is the best match we had */
+        score = 2*(abs(width - cxDesired) + abs(height - cyDesired));
+        if(width > cxDesired)
+            score -= width - cxDesired;
+        if(height > cyDesired)
+            score -= height - cyDesired;
+        if(score != bestScore)
+            continue;
+        /* Exact match? */
+        if(entry->wBitCount == bppDesired)
+            return entry->wResId;
+        /* We take the highest possible but smaller  than the display depth */
+        if((entry->wBitCount > BitCount) && (entry->wBitCount < bppDesired))
+        {
+            /* Avoid paletted icons on non paletted devices */
+            if ((entry->wBitCount <= 8) && notPaletted)
+                continue;
+            iIndex = i;
+            BitCount = entry->wBitCount;
+        }
+    }
+
+    if(iIndex >= 0)
+        return dir->idEntries[iIndex].wResId;
+
+    /* No inferior or equal depth available. Get the smallest bigger one */
+    BitCount = 0xFFFF;
+    iIndex = -1;
+    for(i = 0; i < dir->idCount; i++)
+    {
+        entry = &dir->idEntries[i];
+        width = fIcon ? entry->ResInfo.icon.bWidth : entry->ResInfo.cursor.wWidth;
+        height = fIcon ? entry->ResInfo.icon.bHeight : entry->ResInfo.cursor.wHeight/2;
+        /* 0 represents 256 */
+        if(!width) width = 256;
+        if(!height) height = 256;
+        /* Check if this is the best match we had */
+        score = 2*(abs(width - cxDesired) + abs(height - cyDesired));
+        if(width > cxDesired)
+            score -= width - cxDesired;
+        if(height > cyDesired)
+            score -= height - cyDesired;
+        if(score != bestScore)
+            continue;
+        /* Check the bit depth */
+        if(entry->wBitCount < BitCount)
+        {
+            if((entry->wBitCount <= 8) && notPaletted)
+                continue;
+            iIndex = i;
+            BitCount = entry->wBitCount;
+        }
+    }
+    if (iIndex >= 0)
+        return dir->idEntries[iIndex].wResId;
+
+    return 0;
+}
+
+// HANDLE LoadImagePngFromResource(
+    // HINSTANCE hinst,
+    // LPCWSTR lpszName,
+    // UINT cxDesired,
+    // UINT cyDesired,
+    // UINT fuLoad,
+	// BOOL bIcon,
+    // LPWSTR rt)
+// {
+    // //HRSRC hRes;
+    // //HGLOBAL hGlobal;
+    // LPBYTE pResData;
+    // DWORD resSize;
+    // DWORD imageOffset, imageSize;
+    // BYTE *pngData;
+    // HANDLE hIcon;
+	// LPWSTR  lpszGroupType;
+	// //WORD wResId;
+	// //CURSORICONDIR* dir;
+	// //HANDLE handle;
+	// NTSTATUS status;
+	// LDR_RESOURCE_INFO info;
+	// PIMAGE_RESOURCE_DATA_ENTRY entry;
+	
+	// DbgPrint("LoadImagePngFromResource called\n");
+	
+	// lpszGroupType = RT_GROUP_CURSOR + (rt - RT_CURSOR);
+
+    // // //hRes = FindResourceW(hinst, lpszName, (LPCWSTR)RT_ICON);
+    // // if (hRes = FindResourceW(hinst, lpszName, (LPCWSTR)lpszGroupType)) {
+				
+		// // DbgPrint("LoadImagePngFromResource has RT_GROUP_CURSOR or RT_CURSOR\n");		
+
+        // // /*
+         // // * Load the directory resource.
+         // // */
+        // // hGlobal = LoadResource(hinst, hRes);
+
+        // // /*
+         // // * Now load and lock that resource.
+         // // */
+        // // if ((pResData = (LPBYTE)LockResource(hGlobal)) == NULL){
+            // // DbgPrint("LoadImagePngFromResource pResData is NULL\n");
+			// // return 0;
+		// // }
+
+        // // /*
+         // // * Find the id of the icon that best fits the display characteristics
+         // // * of this display.
+         // // */
+        // // // lpszName = MAKEINTRESOURCE(RtlGetIdFromDirectory(pResData, (UINT)rt,
+                // // // pdi, &dwSize));
+				
+		// // lpszName = MAKEINTRESOURCE(LookupIconIdFromDirectoryEx((PBYTE)pResData, bIcon, cxDesired, cyDesired, fuLoad));
+		// // FreeResource(hGlobal);				
+
+        // // //UNLOCKRESOURCE(h, hmod);
+    // // }
+
+    // // //hRes = FindResourceW(hinst, lpszName, rt);
+    // // hRes = FindResourceW(
+        // // hinst,
+        // // MAKEINTRESOURCEW(wResId),
+        // // bIcon ? RT_ICON : RT_CURSOR);	
+   // /* Find resource ID */
+    // // hRes = FindResourceW(
+        // // hinst,
+        // // lpszName,
+        // // bIcon ? RT_GROUP_ICON : RT_GROUP_CURSOR);
+		
+	// // info.Type     = (ULONG_PTR)RT_GROUP_ICON;           // ou MAKEINTRESOURCEW(3)
+	// // info.Name     = 1;                             // ID do recurso
+	// // info.Language = 0;                             // geralmente 0 ou 1033
+
+	// // status = LdrFindResource_U(hinst, &info, 3, &entry);	
+
+	// // if(!NT_SUCCESS(status)){
+		// // DbgPrint("[LoadImageW Hook] Recurso RT_GROUP_ICON ou RT_GROUP_CURSOR nao encontrado.\n");
+	// // }
+	
+	// // pResData = (BYTE *)hinst + entry->OffsetToData;
+	// //resSize = entry->Size;
+		
+
+    // // /* We let FindResource, LoadResource, etc. call SetLastError */
+    // // if(!hRes){
+        // // DbgPrint("[LoadImageW Hook] Recurso RT_ICON não encontrado.\n");
+	// // }
+
+    // // handle = LoadResource(hinst, hRes);
+    // // if(!handle){
+        // // DbgPrint("[LoadImageW Hook] LoadResource falhou para RT_GROUP_ICON : RT_GROUP_CURSOR\n");
+	// // }
+
+    // // dir = LockResource(handle);
+    // // if(!dir){
+        // // DbgPrint("[LoadImageW Hook] LockResource falhou para RT_GROUP_ICON : RT_GROUP_CURSOR\n");
+	// // }
+
+    // // wResId = LookupIconIdFromDirectoryExHook((PBYTE)dir, bIcon, cxDesired, cyDesired, fuLoad);
+    // // FreeResource(handle);
+	
+	// info.Type     = (ULONG_PTR)RT_ICON;           // ou MAKEINTRESOURCEW(3)
+	// info.Name     = 1;                             // ID do recurso
+	// info.Language = 0;                             // geralmente 0 ou 1033
+
+	// status = LdrFindResource_U(hinst, &info, 3, &entry);	
+
+	// if(!NT_SUCCESS(status)){
+		// DbgPrint("[LoadImageW Hook] Recurso RT_ICON ou RT_CURSOR nao encontrado.\n");
+	// }
+	
+	// // pResData = (BYTE *)hinst + entry->OffsetToData;
+	// // resSize = entry->Size;
+	
+    // status = LdrAccessResource(hinst, entry, (PVOID)pResData, &resSize);
+	// if(!NT_SUCCESS(status)){
+		// DbgPrint("[LoadImageW Hook] LdrAccessResource falhou.\n");
+	// }
+
+    // /* Get the relevant resource pointer */
+    // // hRes = FindResourceW(
+        // // hinst,
+        // // MAKEINTRESOURCEW(wResId),
+        // // bIcon ? RT_ICON : RT_CURSOR);
+		
+    // // if (!hRes)
+    // // {
+        // // DbgPrint("[LoadImageW Hook] Recurso RT_ICON nao encontrado.\n");
+        // // return NULL;
+    // // }
+
+    // // hGlobal = LoadResource(hinst, hRes);
+    // // if (!hGlobal)
+    // // {
+        // // DbgPrint("[LoadImageW Hook] LoadResource falhou.\n");
+        // // return NULL;
+    // // }
+
+    // // pResData = (LPBYTE)LockResource(hGlobal);
+    // // resSize = SizeofResource(hinst, hRes);
+    // // if (!pResData || resSize < 22)
+    // // {
+        // // DbgPrint("[LoadImageW Hook] Dados do recurso inválidos.\n");
+        // // return NULL;
+    // // }
+
+    // // Verifica se há assinatura PNG no início da imagem do ícone
+    // // No formato .ico embutido, o dado já começa com a imagem (sem header de ícone)
+    // if (memcmp(pResData, "\x89PNG\r\n\x1a\n", 8) != 0)
+    // {
+        // DbgPrint("[LoadImageW Hook] Recurso RT_ICON não contém imagem PNG.\n");
+        // return LoadImageW(hinst, lpszName, IMAGE_ICON, cxDesired, cyDesired, fuLoad);
+    // }
+
+    // imageOffset = 0;
+    // imageSize = resSize;
+    // pngData = pResData;
+
+    // hIcon = CreateIconFromPngBits(pngData, imageSize);
+    // if (!hIcon)
+    // {
+        // DbgPrint("[LoadImageW Hook] Falha ao criar ícone PNG do recurso.\n");
+    // }
+
+    // return hIcon;
+// }
+
+HANDLE LoadImagePngFromResource(
+    HINSTANCE hinst,
+    LPCWSTR lpszName,
+    UINT cxDesired,
+    UINT cyDesired,
+    UINT fuLoad,
+    BOOL bIcon)
+{
+    HMODULE modBase;
+    LDR_RESOURCE_INFO info;
+    PIMAGE_RESOURCE_DATA_ENTRY entry;
+    PVOID grpData, iconData;
+    ULONG grpSize, iconSize;
+    BYTE *pngData;
+    HANDLE hIcon;
+    NTSTATUS status;
+	INT iconId;
+
+    modBase = hinst ? hinst : GetModuleHandleW(NULL);
+
+    /* Etapa 1: Localiza RT_GROUP_ICON */
+    info.Type = (ULONG_PTR)RT_GROUP_ICON;
+    info.Name = (ULONG_PTR)lpszName;
+    info.Language = 0;
+
+    entry = NULL;
+    status = LdrFindResource_U(modBase, &info, 3, &entry);
+    if (status < 0 || !entry)
+    {
+        OutputDebugStringA("[PNG] RT_GROUP_ICON não encontrado.\n");
+        //return NULL;
+    }
+
+    grpData = NULL;
+    grpSize = 0;
+    status = LdrAccessResource(modBase, entry, &grpData, &grpSize);
+    if (status < 0 || !grpData)
+    {
+        OutputDebugStringA("[PNG] Falha ao acessar dados de GRPICON.\n");
+        //return NULL;
+    }
+
+    /* Etapa 2: Determina melhor ícone (RT_ICON) */
+    iconId = LookupIconIdFromDirectoryEx((PBYTE)grpData, TRUE, cxDesired, cyDesired, LR_DEFAULTCOLOR);
+    if (iconId == 0)
+    {
+        OutputDebugStringA("[PNG] LookupIconIdFromDirectoryEx falhou.\n");
+        return NULL;
+    }
+
+    /* Etapa 3: Localiza RT_ICON com ID retornado */
+    info.Type = (ULONG_PTR)RT_ICON;
+    info.Name = (ULONG_PTR)(ULONG)iconId;
+    info.Language = 0;
+
+    entry = NULL;
+    status = LdrFindResource_U(modBase, &info, 3, &entry);
+    if (status < 0 || !entry)
+    {
+        OutputDebugStringA("[PNG] RT_ICON (PNG?) não encontrado.\n");
+        return NULL;
+    }
+
+    iconData = NULL;
+    iconSize = 0;
+    status = LdrAccessResource(modBase, entry, &iconData, &iconSize);
+    if (status < 0 || !iconData || iconSize < 8)
+    {
+        OutputDebugStringA("[PNG] Falha ao acessar RT_ICON.\n");
+        return NULL;
+    }
+
+    pngData = (BYTE *)iconData;
+    if (memcmp(pngData, "\x89PNG\r\n\x1a\n", 8) != 0)
+    {
+        OutputDebugStringA("[Hook] Recurso RT_ICON não é PNG.\n");
+        return LoadImageW(hinst, lpszName, IMAGE_ICON, cxDesired, cyDesired, fuLoad);
+    }
+
+    hIcon = CreateIconFromPngBits(pngData, iconSize);
+    if (!hIcon)
+    {
+        OutputDebugStringA("[Hook] CreateIconFromPngBits falhou.\n");
+    }
+
+    return hIcon;
+}
+
 
 HANDLE WINAPI LoadImageWHook( HINSTANCE hinst, LPCWSTR lpszName, UINT uType,
                 INT cxDesired, INT cyDesired, UINT fuLoad )
@@ -1724,15 +2142,80 @@ HANDLE WINAPI LoadImageWHook( HINSTANCE hinst, LPCWSTR lpszName, UINT uType,
 		hIcon = LoadImageW( hinst, lpszName, uType, cxDesired, cyDesired, fuLoad );
 		
 		if(!hIcon){
-			hIcon = LoadImagePng(hinst, lpszName, uType, cxDesired, cyDesired, fuLoad);
-			if(hIcon){
-				return hIcon;
+			DbgPrint("LoadImageWHook::fuLoad is %d\n", fuLoad);
+			if (fuLoad & LR_LOADFROMFILE){
+				hIcon = LoadImagePngFromFile(hinst, lpszName, uType, cxDesired, cyDesired, fuLoad);
 			}else{
-				DbgPrint("Falhou ao criar icone\n");
-			}			
+				hIcon = LoadImagePngFromResource(hinst, lpszName, cxDesired, cyDesired, fuLoad, TRUE);
+			}
+			// if(hIcon){
+				// return hIcon;
+			// }else{				
+				//hIcon =  LoadImagePngFromResource(hinst, lpszName, cxDesired, cyDesired, fuLoad, TRUE, RT_ICON);
+			if(hIcon){
+				return hIcon;	
+			}
+			
+			return NULL;
+			//}			
 		}
 		
 		return hIcon;
     }
     return 0;
+}
+
+HANDLE WINAPI LoadImageAHook(
+  _In_opt_  HINSTANCE hinst,
+  _In_      LPCSTR lpszName,
+  _In_      UINT uType,
+  _In_      int cxDesired,
+  _In_      int cyDesired,
+  _In_      UINT fuLoad
+)
+{
+    HANDLE res;
+    LPWSTR u_name;
+    DWORD len;
+
+    if (IS_INTRESOURCE(lpszName))
+        return LoadImageWHook(hinst, (LPCWSTR)lpszName, uType, cxDesired, cyDesired, fuLoad);
+
+    len = MultiByteToWideChar( CP_ACP, 0, lpszName, -1, NULL, 0 );
+    u_name = HeapAlloc( GetProcessHeap(), 0, len * sizeof(WCHAR) );
+    MultiByteToWideChar( CP_ACP, 0, lpszName, -1, u_name, len );
+
+    res = LoadImageWHook(hinst, u_name, uType, cxDesired, cyDesired, fuLoad);
+    HeapFree(GetProcessHeap(), 0, u_name);
+    return res;
+}
+
+HICON WINAPI LoadIconAHook(
+  _In_opt_  HINSTANCE hInstance,
+  _In_      LPCSTR lpIconName
+)
+{
+    TRACE("%p, %s\n", hInstance, debugstr_a(lpIconName));
+
+    return LoadImageAHook(hInstance,
+        lpIconName,
+        IMAGE_ICON,
+        0,
+        0,
+        LR_SHARED | LR_DEFAULTSIZE );
+}
+
+HICON WINAPI LoadIconWHook(
+  _In_opt_  HINSTANCE hInstance,
+  _In_      LPCWSTR lpIconName
+)
+{
+    TRACE("%p, %s\n", hInstance, debugstr_w(lpIconName));
+
+    return LoadImageWHook(hInstance,
+        lpIconName,
+        IMAGE_ICON,
+        0,
+        0,
+        LR_SHARED | LR_DEFAULTSIZE );
 }
