@@ -22,6 +22,13 @@ Revision History:
 
 #include <main.h>
 
+PLDR_DATA_TABLE_ENTRY LdrpLoadedDllHandleCache, LdrpGetModuleHandleCache;
+
+NTSTATUS
+LdrpHandleTlsData(
+	__inout PLDR_DATA_TABLE_ENTRY ModuleEntry
+	);
+
 static RTL_CRITICAL_SECTION loader_section;
 static RTL_CRITICAL_SECTION_DEBUG critsect_debug =
 {
@@ -626,4 +633,71 @@ LdrGetDllPathInternal(
 	}
 	
 	return Status;
+}
+
+BOOLEAN
+NTAPI
+LdrpCheckForLoadedDllHandle(IN PVOID Base,
+                            OUT PLDR_DATA_TABLE_ENTRY *LdrEntry)
+{
+    PLDR_DATA_TABLE_ENTRY Current;
+    PLIST_ENTRY ListHead, Next;
+
+    /* Check the cache first */
+    if ((LdrpLoadedDllHandleCache) &&
+        (LdrpLoadedDllHandleCache->DllBase == Base))
+    {
+        /* We got lucky, return the cached entry */
+        *LdrEntry = LdrpLoadedDllHandleCache;
+        return TRUE;
+    }
+
+    /* Time for a lookup */
+    ListHead = &NtCurrentPeb()->Ldr->InLoadOrderModuleList;
+    Next = ListHead->Flink;
+    while (Next != ListHead)
+    {
+        /* Get the current entry */
+        Current = CONTAINING_RECORD(Next,
+                                    LDR_DATA_TABLE_ENTRY,
+                                    InLoadOrderLinks);
+
+        /* Make sure it's not unloading and check for a match */
+        if ((Current->InMemoryOrderLinks.Flink) && (Base == Current->DllBase))
+        {
+            /* Save in cache */
+            LdrpLoadedDllHandleCache = Current;
+
+            /* Return it */
+            *LdrEntry = Current;
+            return TRUE;
+        }
+
+        /* Move to the next one */
+        Next = Next->Flink;
+    }
+
+    /* Nothing found */
+    return FALSE;
+}
+
+NTSTATUS
+NTAPI
+DECLSPEC_HOTPATCH
+LdrLoadDllHook(IN PWSTR SearchPath OPTIONAL,
+           IN PULONG DllCharacteristics OPTIONAL,
+           IN PUNICODE_STRING DllName,
+           OUT PVOID *BaseAddress)
+{
+	PLDR_DATA_TABLE_ENTRY LdrEntry;
+	
+	DbgPrint("LdrLoadDllHook called\n");
+	
+    if (LdrpCheckForLoadedDllHandle(BaseAddress, &LdrEntry))
+    {
+		DbgPrint("LdrLoadDllHook::calling LdrpHandleTlsData\n");
+        LdrpHandleTlsData(LdrEntry);
+    }	
+	
+	return LdrLoadDll(SearchPath, DllCharacteristics, DllName, BaseAddress);
 }

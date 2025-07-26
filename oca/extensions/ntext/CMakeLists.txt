@@ -29,8 +29,9 @@ list(APPEND SOURCE
 	ntapi/hooks.c	
 	ntapi/ntapi.c	
 	ldr/ldrapi.c
+	ldr/ldrtls.c
 	ldr/loader.c
-	#ldr/toolhelp.c
+	ldr/toolhelp.c
 	rtl/acl.c
 	rtl/actctx.c
 	rtl/atom.c

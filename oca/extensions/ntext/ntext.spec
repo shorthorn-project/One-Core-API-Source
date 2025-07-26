@@ -66,7 +66,7 @@
 @ stdcall LdrInitShimEngineDynamic(long) ntdll.LdrInitShimEngineDynamic
 @ stdcall LdrInitializeThunk(ptr ptr ptr)  
 @ stdcall LdrLoadAlternateResourceModule(ptr wstr)
-@ stdcall LdrLoadDll(wstr long ptr ptr)
+@ stdcall LdrLoadDll(wstr long ptr ptr) LdrLoadDllHook
 @ stdcall LdrLockLoaderLock(long ptr ptr)
 @ stdcall LdrProcessRelocationBlock(ptr long ptr long)
 @ stdcall LdrQueryProcessModuleInformation(ptr long ptr)
@@ -1555,6 +1555,8 @@
 @ stdcall NtRemoveIoCompletionEx(ptr ptr long ptr ptr long)
 @ stdcall NtCreateKeyTransacted(ptr long ptr long ptr long ptr ptr)
 @ stdcall NtGetNlsSectionPtr(long long long ptr ptr)
+@ stdcall NtGetNextThread(long long long long long ptr)
+@ stdcall NtGetNextProcess(long long long long ptr)
 @ stdcall NtOpenKeyTransacted(ptr long ptr ptr)
 @ stdcall NtTraceControl(long ptr long ptr long ptr) 
 @ stdcall NtUnmapViewOfSectionEx(ptr ptr long)

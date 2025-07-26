@@ -28,6 +28,12 @@ void init_locale();
 void NTAPI RtlpInitSRWLock();
 VOID InitializeGlobalKeyedEventHandle();
 BOOL IsUniprocessorMachine = FALSE;
+ULONG NtdllBaseTag = 0;
+
+NTSTATUS
+LdrpInitializeTls (
+    VOID
+    );
 
 /*****************************************************
  *      DllMain
@@ -54,10 +60,13 @@ LdrInitialize(
 		RtlpInitSRWLock(NtCurrentTeb()->ProcessEnvironmentBlock);
 		RtlpInitConditionVariable(NtCurrentTeb()->ProcessEnvironmentBlock);
 		InitializeGlobalKeyedEventHandle();
+		NtdllBaseTag = RtlCreateTagHeap(RtlProcessHeap(), 0, L"NTDLL!", L"!Process");
 		if (NtCurrentTeb()->ProcessEnvironmentBlock->NumberOfProcessors == 1)
 		{
 			IsUniprocessorMachine = TRUE;
 		}
+		
+		LdrpInitializeTls();
     }
     else if (dwReason == DLL_PROCESS_DETACH)
     {

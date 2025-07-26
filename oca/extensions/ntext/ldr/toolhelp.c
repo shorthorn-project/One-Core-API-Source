@@ -16,9 +16,29 @@
  */
 
 #include <main.h>
+#include <tlhelp32.h>
 
 #define NDEBUG
 #include <debug.h>
+
+#define RtlpGetCurrentProcessId() (HandleToUlong(NtCurrentTeb()->ClientId.UniqueProcess))
+
+NTSTATUS
+LdrCopyAnsiToUnicode(
+    PWCHAR Dest,
+    PUCHAR Src,
+    USHORT Max)
+{
+    UNICODE_STRING UnicodeString;
+    ANSI_STRING AnsiString;
+
+    UnicodeString.Buffer = Dest;
+    UnicodeString.MaximumLength = Max;
+
+    RtlInitAnsiString(&AnsiString, (PCSZ)Src);
+
+    return RtlAnsiStringToUnicodeString( &UnicodeString, &AnsiString, FALSE );
+}
 
 /* INTERNAL DEFINITIONS *******************************************************/
 
@@ -34,7 +54,7 @@ typedef struct _RTLP_HEAP_ENTRY
 #define CHECK_PARAM_SIZE(ptr, siz)                                             \
   if((ptr) == NULL || (ptr)->dwSize != (siz))                                  \
   {                                                                            \
-    SetLastError(ERROR_INVALID_PARAMETER);                                     \
+    RtlSetLastWin32Error(ERROR_INVALID_PARAMETER);                                     \
     return FALSE;                                                              \
   }
 
@@ -48,7 +68,7 @@ typedef struct _RTLP_HEAP_ENTRY
 #define CHECK_PARAM_SIZEA(ptr, siz)                                            \
   if((ptr) == NULL || (ptr)->dwSize < (siz))                                   \
   {                                                                            \
-    SetLastError(ERROR_INVALID_PARAMETER);                                     \
+    RtlSetLastWin32Error(ERROR_INVALID_PARAMETER);                                     \
     return FALSE;                                                              \
   }
 
@@ -362,18 +382,12 @@ TH32CreateSnapshotSectionInitialize(DWORD dwFlags,
       ModuleListEntry->modBaseSize = mi->Modules[i].ImageSize;
       ModuleListEntry->hModule = (HMODULE)mi->Modules[i].ImageBase;
 
-      MultiByteToWideChar(CP_ACP,
-                          0,
+      LdrCopyAnsiToUnicode(ModuleListEntry->szModule,
                           &mi->Modules[i].FullPathName[mi->Modules[i].OffsetToFileName],
-                          -1,
-                          ModuleListEntry->szModule,
                           sizeof(ModuleListEntry->szModule) / sizeof(ModuleListEntry->szModule[0]));
 
-      MultiByteToWideChar(CP_ACP,
-                          0,
-                          mi->Modules[i].FullPathName,
-                          -1,
-                          ModuleListEntry->szExePath,
+      LdrCopyAnsiToUnicode(ModuleListEntry->szExePath,
+						  mi->Modules[i].FullPathName,
                           sizeof(ModuleListEntry->szExePath) / sizeof(ModuleListEntry->szExePath[0]));
 
       ModuleListEntry++;
@@ -415,7 +429,7 @@ TH32CreateSnapshotSectionInitialize(DWORD dwFlags,
       }
       else
       {
-        lstrcpyW(ProcessListEntry->szExeFile, L"[System Process]");
+        wcscpy(ProcessListEntry->szExeFile, L"[System Process]");
       }
 
       ProcessListEntry++;
@@ -500,7 +514,7 @@ Heap32First(LPHEAPENTRY32 lphe, DWORD th32ProcessID, DWORD th32HeapID)
                                         FALSE);
   if (DebugInfo == NULL)
   {
-    SetLastError(ERROR_NOT_ENOUGH_MEMORY);
+    RtlSetLastWin32Error(ERROR_NOT_ENOUGH_MEMORY);
     return FALSE;
   }
 
@@ -562,7 +576,7 @@ Heap32First(LPHEAPENTRY32 lphe, DWORD th32ProcessID, DWORD th32HeapID)
 
   if (!NT_SUCCESS(Status))
   {
-    BaseSetLastNTError(Status);
+    RtlSetLastWin32ErrorAndNtStatusFromNtStatus(Status);
     return FALSE;
   }
 
@@ -590,7 +604,7 @@ Heap32Next(LPHEAPENTRY32 lphe)
                                         FALSE);
   if (DebugInfo == NULL)
   {
-    SetLastError(ERROR_NOT_ENOUGH_MEMORY);
+    RtlSetLastWin32Error(ERROR_NOT_ENOUGH_MEMORY);
     return FALSE;
   }
 
@@ -652,7 +666,7 @@ Heap32Next(LPHEAPENTRY32 lphe)
 
   if (!NT_SUCCESS(Status))
   {
-    BaseSetLastNTError(Status);
+    RtlSetLastWin32ErrorAndNtStatusFromNtStatus(Status);
     return FALSE;
   }
 
@@ -702,7 +716,7 @@ Heap32ListFirst(HANDLE hSnapshot, LPHEAPLIST32 lphl)
     }
     else
     {
-      SetLastError(ERROR_NO_MORE_FILES);
+      RtlSetLastWin32Error(ERROR_NO_MORE_FILES);
       Ret = FALSE;
     }
 
@@ -710,7 +724,7 @@ Heap32ListFirst(HANDLE hSnapshot, LPHEAPLIST32 lphl)
     return Ret;
   }
 
-  BaseSetLastNTError(Status);
+  RtlSetLastWin32ErrorAndNtStatusFromNtStatus(Status);
   return FALSE;
 }
 
@@ -756,7 +770,7 @@ Heap32ListNext(HANDLE hSnapshot, LPHEAPLIST32 lphl)
     }
     else
     {
-      SetLastError(ERROR_NO_MORE_FILES);
+      RtlSetLastWin32Error(ERROR_NO_MORE_FILES);
       Ret = FALSE;
     }
 
@@ -764,43 +778,9 @@ Heap32ListNext(HANDLE hSnapshot, LPHEAPLIST32 lphl)
     return Ret;
   }
 
-  BaseSetLastNTError(Status);
+  RtlSetLastWin32ErrorAndNtStatusFromNtStatus(Status);
   return FALSE;
 }
-
-
-/*
- * @implemented
- */
-BOOL
-WINAPI
-Module32First(HANDLE hSnapshot, LPMODULEENTRY32 lpme)
-{
-  MODULEENTRY32W me;
-  BOOL Ret;
-
-  CHECK_PARAM_SIZEA(lpme, sizeof(MODULEENTRY32));
-
-  me.dwSize = sizeof(MODULEENTRY32W);
-
-  Ret = Module32FirstW(hSnapshot, &me);
-  if(Ret)
-  {
-    lpme->th32ModuleID = me.th32ModuleID;
-    lpme->th32ProcessID = me.th32ProcessID;
-    lpme->GlblcntUsage = me.GlblcntUsage;
-    lpme->ProccntUsage = me.ProccntUsage;
-    lpme->modBaseAddr = me.modBaseAddr;
-    lpme->modBaseSize = me.modBaseSize;
-    lpme->hModule = me.hModule;
-
-    WideCharToMultiByte(CP_ACP, 0, me.szModule, -1, lpme->szModule, sizeof(lpme->szModule), 0, 0);
-    WideCharToMultiByte(CP_ACP, 0, me.szExePath, -1, lpme->szExePath, sizeof(lpme->szExePath), 0, 0);
-  }
-
-  return Ret;
-}
-
 
 /*
  * @implemented
@@ -843,7 +823,7 @@ Module32FirstW(HANDLE hSnapshot, LPMODULEENTRY32W lpme)
     }
     else
     {
-      SetLastError(ERROR_NO_MORE_FILES);
+      RtlSetLastWin32Error(ERROR_NO_MORE_FILES);
       Ret = FALSE;
     }
 
@@ -851,43 +831,9 @@ Module32FirstW(HANDLE hSnapshot, LPMODULEENTRY32W lpme)
     return Ret;
   }
 
-  BaseSetLastNTError(Status);
+  RtlSetLastWin32ErrorAndNtStatusFromNtStatus(Status);
   return FALSE;
 }
-
-
-/*
- * @implemented
- */
-BOOL
-WINAPI
-Module32Next(HANDLE hSnapshot, LPMODULEENTRY32 lpme)
-{
-  MODULEENTRY32W me;
-  BOOL Ret;
-
-  CHECK_PARAM_SIZEA(lpme, sizeof(MODULEENTRY32));
-
-  me.dwSize = sizeof(MODULEENTRY32W);
-
-  Ret = Module32NextW(hSnapshot, &me);
-  if(Ret)
-  {
-    lpme->th32ModuleID = me.th32ModuleID;
-    lpme->th32ProcessID = me.th32ProcessID;
-    lpme->GlblcntUsage = me.GlblcntUsage;
-    lpme->ProccntUsage = me.ProccntUsage;
-    lpme->modBaseAddr = me.modBaseAddr;
-    lpme->modBaseSize = me.modBaseSize;
-    lpme->hModule = me.hModule;
-
-    WideCharToMultiByte(CP_ACP, 0, me.szModule, -1, lpme->szModule, sizeof(lpme->szModule), 0, 0);
-    WideCharToMultiByte(CP_ACP, 0, me.szExePath, -1, lpme->szExePath, sizeof(lpme->szExePath), 0, 0);
-  }
-
-  return Ret;
-}
-
 
 /*
  * @implemented
@@ -930,7 +876,7 @@ Module32NextW(HANDLE hSnapshot, LPMODULEENTRY32W lpme)
     }
     else
     {
-      SetLastError(ERROR_NO_MORE_FILES);
+      RtlSetLastWin32Error(ERROR_NO_MORE_FILES);
       Ret = FALSE;
     }
 
@@ -938,50 +884,16 @@ Module32NextW(HANDLE hSnapshot, LPMODULEENTRY32W lpme)
     return Ret;
   }
 
-  BaseSetLastNTError(Status);
+  RtlSetLastWin32ErrorAndNtStatusFromNtStatus(Status);
   return FALSE;
 }
 
-
 /*
  * @implemented
  */
 BOOL
 WINAPI
-Process32First(HANDLE hSnapshot, LPPROCESSENTRY32 lppe)
-{
-  PROCESSENTRY32W pe;
-  BOOL Ret;
-
-  CHECK_PARAM_SIZEA(lppe, sizeof(PROCESSENTRY32));
-
-  pe.dwSize = sizeof(PROCESSENTRY32W);
-
-  Ret = Process32FirstW(hSnapshot, &pe);
-  if(Ret)
-  {
-    lppe->cntUsage = pe.cntUsage;
-    lppe->th32ProcessID = pe.th32ProcessID;
-    lppe->th32DefaultHeapID = pe.th32DefaultHeapID;
-    lppe->th32ModuleID = pe.th32ModuleID;
-    lppe->cntThreads = pe.cntThreads;
-    lppe->th32ParentProcessID = pe.th32ParentProcessID;
-    lppe->pcPriClassBase = pe.pcPriClassBase;
-    lppe->dwFlags = pe.dwFlags;
-
-    WideCharToMultiByte(CP_ACP, 0, pe.szExeFile, -1, lppe->szExeFile, sizeof(lppe->szExeFile), 0, 0);
-  }
-
-  return Ret;
-}
-
-
-/*
- * @implemented
- */
-BOOL
-WINAPI
-LdrProcess32FirstW(HANDLE hSnapshot, LPPROCESSENTRY32W lppe)
+LdrProcess32First(HANDLE hSnapshot, LPPROCESSENTRY32W lppe)
 {
   PTH32SNAPSHOT Snapshot;
   LARGE_INTEGER SOffset;
@@ -1019,7 +931,7 @@ LdrProcess32FirstW(HANDLE hSnapshot, LPPROCESSENTRY32W lppe)
     else
     {
 
-      SetLastError(ERROR_NO_MORE_FILES);
+      RtlSetLastWin32Error(ERROR_NO_MORE_FILES);
       Ret = FALSE;
     }
 
@@ -1027,41 +939,61 @@ LdrProcess32FirstW(HANDLE hSnapshot, LPPROCESSENTRY32W lppe)
     return Ret;
   }
 
-  BaseSetLastNTError(Status);
+  RtlSetLastWin32ErrorAndNtStatusFromNtStatus(Status);
   return FALSE;
 }
-
 
 /*
  * @implemented
  */
 BOOL
 WINAPI
-LdrProcess32Next(HANDLE hSnapshot, LPPROCESSENTRY32 lppe)
+LdrProcess32Next(HANDLE hSnapshot, LPPROCESSENTRY32W lppe)
 {
-  PROCESSENTRY32W pe;
-  BOOL Ret;
+  PTH32SNAPSHOT Snapshot;
+  LARGE_INTEGER SOffset;
+  SIZE_T ViewSize;
+  NTSTATUS Status;
 
-  CHECK_PARAM_SIZEA(lppe, sizeof(PROCESSENTRY32));
+  CHECK_PARAM_SIZE(lppe, sizeof(PROCESSENTRY32W));
 
-  pe.dwSize = sizeof(PROCESSENTRY32W);
+  SOffset.QuadPart = 0;
+  ViewSize = 0;
+  Snapshot = NULL;
 
-  Ret = Process32NextW(hSnapshot, &pe);
-  if(Ret)
+  Status = NtMapViewOfSection(hSnapshot,
+                              NtCurrentProcess(),
+                              (PVOID*)&Snapshot,
+                              0,
+                              0,
+                              &SOffset,
+                              &ViewSize,
+                              ViewShare,
+                              0,
+                              PAGE_READWRITE);
+  if(NT_SUCCESS(Status))
   {
-    lppe->cntUsage = pe.cntUsage;
-    lppe->th32ProcessID = pe.th32ProcessID;
-    lppe->th32DefaultHeapID = pe.th32DefaultHeapID;
-    lppe->th32ModuleID = pe.th32ModuleID;
-    lppe->cntThreads = pe.cntThreads;
-    lppe->th32ParentProcessID = pe.th32ParentProcessID;
-    lppe->pcPriClassBase = pe.pcPriClassBase;
-    lppe->dwFlags = pe.dwFlags;
+    BOOL Ret;
 
-    WideCharToMultiByte(CP_ACP, 0, pe.szExeFile, -1, lppe->szExeFile, sizeof(lppe->szExeFile), 0, 0);
+    if(Snapshot->ProcessListCount > 0 &&
+       Snapshot->ProcessListIndex < Snapshot->ProcessListCount)
+    {
+      LPPROCESSENTRY32W Entries = (LPPROCESSENTRY32W)OffsetToPtr(Snapshot, Snapshot->ProcessListOffset);
+      RtlCopyMemory(lppe, &Entries[Snapshot->ProcessListIndex++], sizeof(PROCESSENTRY32W));
+      Ret = TRUE;
+    }
+    else
+    {
+      RtlSetLastWin32Error(ERROR_NO_MORE_FILES);
+      Ret = FALSE;
+    }
+
+    NtUnmapViewOfSection(NtCurrentProcess(), (PVOID)Snapshot);
+    return Ret;
   }
 
-  return Ret;
+  RtlSetLastWin32ErrorAndNtStatusFromNtStatus(Status);
+  return FALSE;
 }
 
 /*
@@ -1105,7 +1037,7 @@ LdrThread32First(HANDLE hSnapshot, LPTHREADENTRY32 lpte)
     }
     else
     {
-      SetLastError(ERROR_NO_MORE_FILES);
+      RtlSetLastWin32Error(ERROR_NO_MORE_FILES);
       Ret = FALSE;
     }
 
@@ -1113,7 +1045,7 @@ LdrThread32First(HANDLE hSnapshot, LPTHREADENTRY32 lpte)
     return Ret;
   }
 
-  BaseSetLastNTError(Status);
+  RtlSetLastWin32ErrorAndNtStatusFromNtStatus(Status);
   return FALSE;
 }
 
@@ -1159,7 +1091,7 @@ LdrThread32Next(HANDLE hSnapshot, LPTHREADENTRY32 lpte)
     }
     else
     {
-      SetLastError(ERROR_NO_MORE_FILES);
+      RtlSetLastWin32Error(ERROR_NO_MORE_FILES);
       Ret = FALSE;
     }
 
@@ -1167,7 +1099,7 @@ LdrThread32Next(HANDLE hSnapshot, LPTHREADENTRY32 lpte)
     return Ret;
   }
 
-  BaseSetLastNTError(Status);
+  RtlSetLastWin32ErrorAndNtStatusFromNtStatus(Status);
   return FALSE;
 }
 
@@ -1186,7 +1118,7 @@ LdrCreateToolhelp32Snapshot(DWORD dwFlags, DWORD th32ProcessID)
 
   if(th32ProcessID == 0)
   {
-    th32ProcessID = GetCurrentProcessId();
+    th32ProcessID = RtlpGetCurrentProcessId();
   }
 
   /*
@@ -1200,7 +1132,7 @@ LdrCreateToolhelp32Snapshot(DWORD dwFlags, DWORD th32ProcessID)
                               &ProcThrdInfoSize);
   if(!NT_SUCCESS(Status))
   {
-    BaseSetLastNTError(Status);
+    RtlSetLastWin32ErrorAndNtStatusFromNtStatus(Status);
     return NULL;
   }
 
@@ -1224,11 +1156,160 @@ LdrCreateToolhelp32Snapshot(DWORD dwFlags, DWORD th32ProcessID)
 
   if(!NT_SUCCESS(Status))
   {
-    BaseSetLastNTError(Status);
+    RtlSetLastWin32ErrorAndNtStatusFromNtStatus(Status);
     return NULL;
   }
 
   return hSnapShotSection;
 }
 
+NTSTATUS
+NTAPI
+NtGetNextThread (
+    __in HANDLE ProcessHandle,
+    __in HANDLE ThreadHandle,
+    __in ACCESS_MASK DesiredAccess,
+    __in ULONG HandleAttributes,
+    __in ULONG Flags,
+    __out PHANDLE NewThreadHandle
+    )
+{
+    HANDLE hSnapshot;
+    THREADENTRY32 te32;
+    DWORD currentThreadId;
+    DWORD nextThreadId;
+    BOOL found;
+    BOOL hasThread;
+    HANDLE hThread;
+	CLIENT_ID ClientId;
+	OBJECT_ATTRIBUTES Obja;
+	NTSTATUS Status;
+
+    currentThreadId = 0;
+    nextThreadId = 0;
+    found = FALSE;
+	
+	UNREFERENCED_PARAMETER(ProcessHandle);
+	UNREFERENCED_PARAMETER(ThreadHandle);
+	UNREFERENCED_PARAMETER(DesiredAccess);
+	UNREFERENCED_PARAMETER(HandleAttributes);
+	UNREFERENCED_PARAMETER(Flags);
+
+    hSnapshot = LdrCreateToolhelp32Snapshot(TH32CS_SNAPTHREAD, 0);
+    if (hSnapshot == INVALID_HANDLE_VALUE) {
+        return STATUS_UNSUCCESSFUL;
+    }
+
+    te32.dwSize = sizeof(THREADENTRY32);
+    hasThread = LdrThread32First(hSnapshot, &te32);
+
+    while (hasThread) {
+        if (te32.th32OwnerProcessID == HandleToUlong(NtCurrentTeb()->ClientId.UniqueProcess) && te32.th32ThreadID > currentThreadId) {
+            if (!found || te32.th32ThreadID < nextThreadId) {
+                nextThreadId = te32.th32ThreadID;
+                found = TRUE;
+            }
+        }
+        hasThread = LdrThread32Next(hSnapshot, &te32);
+    }
+
+    //CloseHandle(hSnapshot);
+	NtClose(hSnapshot);
+
+    if (!found) {
+        return STATUS_NO_MORE_ENTRIES;
+    }
+
+	ClientId.UniqueThread = (HANDLE)LongToHandle(te32.th32ThreadID);
+	ClientId.UniqueProcess = (HANDLE)NULL;
+
+	InitializeObjectAttributes(&Obja,
+								NULL,
+								0,
+								NULL,
+								NULL
+								);
+	Status = NtOpenThread(
+						&hThread,
+						(ACCESS_MASK)THREAD_QUERY_INFORMATION,
+						&Obja,
+						&ClientId
+						);
+	if ( !NT_SUCCESS(Status) ) {
+		return Status;
+	}
+
+    // hThread = OpenThread(DesiredAccess, (HandleAttributes & OBJ_INHERIT) != 0, nextThreadId);
+    // if (hThread == NULL) {
+        // return STATUS_ACCESS_DENIED;
+    // }
+
+    *NewThreadHandle = hThread;
+    return STATUS_SUCCESS;
+}
+
+NTSTATUS 
+NTAPI
+NtGetNextProcess(
+    HANDLE ProcessHandle,
+    ACCESS_MASK DesiredAccess,
+    ULONG HandleAttributes,
+    ULONG Flags,
+    PHANDLE NewProcessHandle
+) {
+    HANDLE hSnapshot;
+    PROCESSENTRY32W pe32;
+    DWORD currentPid;
+    DWORD nextPid;
+    BOOL found;
+    BOOL hasProcess;
+    HANDLE hProcess;
+	CLIENT_ID cid;
+	OBJECT_ATTRIBUTES objAttr;
+	NTSTATUS status;
+
+    currentPid = 0;
+    nextPid = 0;
+    found = FALSE;
+	
+	UNREFERENCED_PARAMETER(ProcessHandle);
+	UNREFERENCED_PARAMETER(Flags);
+
+    hSnapshot = LdrCreateToolhelp32Snapshot(TH32CS_SNAPPROCESS, 0);
+    if (hSnapshot == INVALID_HANDLE_VALUE) {
+        return STATUS_UNSUCCESSFUL;
+    }
+
+    pe32.dwSize = sizeof(PROCESSENTRY32);
+    hasProcess = LdrProcess32First(hSnapshot, &pe32);
+
+    while (hasProcess) {
+        if (pe32.th32ProcessID > currentPid) {
+            if (!found || pe32.th32ProcessID < nextPid) {
+                nextPid = pe32.th32ProcessID;
+                found = TRUE;
+            }
+        }
+        hasProcess = LdrProcess32Next(hSnapshot, &pe32);
+    }
+
+    NtClose(hSnapshot);
+
+    if (!found) {
+        return STATUS_NO_MORE_ENTRIES;
+    }
+
+
+    // Abre o novo processo usando NtOpenProcess
+    cid.UniqueProcess = (HANDLE)(ULONG_PTR)nextPid;
+    cid.UniqueThread = NULL;
+    InitializeObjectAttributes(&objAttr, NULL, HandleAttributes, NULL, NULL);
+
+    status = NtOpenProcess(&hProcess, DesiredAccess, &objAttr, &cid);
+    if (status != STATUS_SUCCESS)
+        return STATUS_ACCESS_DENIED;
+
+    *NewProcessHandle = hProcess;
+    return STATUS_SUCCESS;
+}
 /* EOF */

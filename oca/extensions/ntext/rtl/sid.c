@@ -22,7 +22,7 @@ Revision History:
 
 #include <main.h>
 
-ULONG NtdllBaseTag = 0;
+extern ULONG NtdllBaseTag;
 
 NTSTATUS WINAPI RtlCreateServiceSid(
     PUNICODE_STRING ServiceName,
