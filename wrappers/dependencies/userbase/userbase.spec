@@ -758,3 +758,4 @@
 @ stdcall DwmStartup(ptr)
 @ stdcall DwmShutdown()
 @ stdcall -stub DCEQueryMode()
+@ stdcall -stub PrivateRegisterICSProc(ptr)

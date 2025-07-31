@@ -954,7 +954,7 @@ static const struct sortguid *find_sortguid( const GUID *guid )
         if (ret > 0) min = pos + 1;
         else max = pos - 1;
     }
-    ERR( "no sort found for %s\n", debugstr_guid( guid ));
+    //ERR( "no sort found for %s\n", debugstr_guid( guid ));
     return NULL;
 }
 
@@ -1763,7 +1763,7 @@ EnumPreferredThreadUILanguages(
     static const WCHAR formatstringW[] = { '%','.','2','s',0 };
 	
 
-    FIXME( "EnumPreferredThreadUILanguages :: semi-stub %u, %p, %p %p\n", flags, count, buffer, buffersize );
+    //FIXME( "EnumPreferredThreadUILanguages :: semi-stub %u, %p, %p %p\n", flags, count, buffer, buffersize );
 	
     /* FIXME should we check for too small buffersize too? */
     if (!buffer || *buffersize < 11)

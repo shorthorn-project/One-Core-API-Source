@@ -619,17 +619,21 @@ Win32PoolAllocationStats(DWORD dw1, DWORD dw2, DWORD dw3, DWORD dw4, DWORD dw5)
     return FALSE;
 }
 
-BOOL WINAPI GetProcessDpiAwarenessInternal(HANDLE,DPI_AWARENESS*)
+BOOL WINAPI GetProcessDpiAwarenessInternal(HANDLE hnd,DPI_AWARENESS* dpi)
 {
 	return FALSE;
 }
 
-BOOL WINAPI SetProcessDpiAwarenessInternal(DPI_AWARENESS)
+BOOL WINAPI SetProcessDpiAwarenessInternal(DPI_AWARENESS dpi)
 {
 	return FALSE;
 }
 
-BOOL WINAPI GetDpiForMonitorInternal(HMONITOR,UINT,UINT*,UINT*)
+BOOL WINAPI GetDpiForMonitorInternal(HMONITOR monitor,UINT dp1,UINT* dp2,UINT* dpi)
 {
+	return FALSE;
+}
+
+BOOL WINAPI PrivateRegisterICSProc(PVOID addr){
 	return FALSE;
 }

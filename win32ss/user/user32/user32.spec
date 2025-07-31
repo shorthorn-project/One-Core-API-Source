@@ -787,3 +787,5 @@
 @ stdcall -stub GetPointerDevice(long ptr)
 @ stdcall -stub GetPointerDevices(ptr ptr)
 @ stdcall -stub RegisterPointerDeviceNotifications(ptr long)
+
+@ stdcall PrivateRegisterICSProc(ptr)
