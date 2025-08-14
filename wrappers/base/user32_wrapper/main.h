@@ -657,25 +657,6 @@ typedef struct tagPROCESS_UICONTEXT_INFORMATION {
     DWORD dwFlags; //PROCESS_UI_FLAGS
 } PROCESS_UICONTEXT_INFORMATION, * PPROCESS_UICONTEXT_INFORMATION;
 
-typedef struct {
-    BYTE bWidth;
-    BYTE bHeight;
-    BYTE bColorCount;
-    BYTE bReserved;
-    WORD xHotspot;
-    WORD yHotspot;
-    DWORD dwDIBSize;
-    DWORD dwDIBOffset;
-} CURSORICONFILEDIRENTRY;
-
-typedef struct
-{
-    WORD                idReserved;
-    WORD                idType;
-    WORD                idCount;
-    CURSORICONFILEDIRENTRY  idEntries[1];
-} CURSORICONFILEDIR;
-
 struct cursoricon_frame
 {
     UINT     width;    /* frame-specific width */
@@ -751,6 +732,52 @@ typedef struct
     CURSORICONDIRENTRY  idEntries[1];
 } CURSORICONDIR;
 
+// typedef struct _CURSORICONFILEDIRENTRY
+// {
+    // BYTE bWidth;
+    // BYTE bHeight;
+    // BYTE bColorCount;
+    // BYTE bReserved;
+    // union
+    // {
+        // WORD wPlanes; /* For icons */
+        // WORD xHotspot; /* For cursors */
+    // };
+    // union
+    // {
+        // WORD wBitCount; /* For icons */
+        // WORD yHotspot; /* For cursors */
+    // };
+    // DWORD dwDIBSize;
+    // DWORD dwDIBOffset;
+// } CURSORICONFILEDIRENTRY;
+
+// typedef struct _CURSORICONFILEDIR
+// {
+    // WORD idReserved;
+    // WORD idType;
+    // WORD idCount;
+    // CURSORICONFILEDIRENTRY idEntries[1];
+// } CURSORICONFILEDIR;
+
+typedef struct
+{
+    WORD idReserved;   // Sempre 0
+    WORD idType;       // 1 para ícone
+    WORD idCount;      // Número de imagens
+} ICONDIR;
+
+typedef struct
+{
+    BYTE  bWidth;
+    BYTE  bHeight;
+    BYTE  bColorCount;
+    BYTE  bReserved;
+    WORD  wPlanes;
+    WORD  wBitCount;
+    DWORD dwBytesInRes;
+    DWORD dwImageOffset;
+} ICONDIRENTRY;
 
 void USER_Lock(void);
 void USER_Unlock(void);
@@ -766,6 +793,16 @@ SystemParametersInfoWInternal(
 	UINT uiParam,
 	PVOID pvParam,
 	UINT fWinIni);
+	
+HICON WINAPI CreateIconFromResourceExHook(
+  _In_  PBYTE pbIconBits,
+  _In_  DWORD cbIconBits,
+  _In_  BOOL fIcon,
+  _In_  DWORD dwVersion,
+  _In_  int cxDesired,
+  _In_  int cyDesired,
+  _In_  UINT uFlags
+);	
 
 // Definitions of prototype functions for get address
 	

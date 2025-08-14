@@ -23,6 +23,7 @@ list(APPEND SOURCE
 	display.c
 	dpi.c
 	dwm.c
+	exticon.c
 	hooks.c
 	icon.c
 	input.c
@@ -42,7 +43,7 @@ list(APPEND SOURCE
     ${CMAKE_CURRENT_BINARY_DIR}/user32_wrapper.def)
 
 add_library(user32_wrapper SHARED ${SOURCE})
-set_module_type(user32_wrapper win32dll ENTRYPOINT 0)
+set_module_type(user32_wrapper win32dll ENTRYPOINT DllMain)
 
 target_link_libraries(user32_wrapper wine uuid)
 

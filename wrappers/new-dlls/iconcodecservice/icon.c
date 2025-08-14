@@ -1,6 +1,6 @@
 /*++
 
-Copyright (c) 2018 Shorthorn Project
+Copyright (c) 2025 Shorthorn Project
 
 Module Name:
 
@@ -8,11 +8,11 @@ Module Name:
 
 Abstract:
 
-        This file implements the NT icons routines.
+        This file implements the NT icon png convert routines.
 
 Author:
 
-    Skulltrail 18-April-2018
+    Skulltrail 30-July-2025
 
 Revision History:
 
@@ -67,133 +67,133 @@ typedef LPBITMAPINFOHEADER(*PCONVERT_TO_DIB_PROC)(LPBITMAPINFOHEADER lpPngData, 
 
 BOOL WINAPI PrivateRegisterICSProc(PCONVERT_TO_DIB_PROC AddrOfFn);
 
-// LPBITMAPINFOHEADER __stdcall ConvertToDIBProc(LPBITMAPINFOHEADER lpPngData, DWORD dwSize)
-// {
-    // png_structp png_ptr;
-    // png_infop info_ptr;
-    // PNG_READER reader;
-    // png_bytep *row_pointers;
-    // png_bytep png_buffer;
-    // png_size_t png_size;
+LPBITMAPINFOHEADER __stdcall ConvertToDIBProc(LPBITMAPINFOHEADER lpPngData, DWORD dwSize)
+{
+    png_structp png_ptr;
+    png_infop info_ptr;
+    PNG_READER reader;
+    png_bytep *row_pointers;
+    png_bytep png_buffer;
+    png_size_t png_size;
 
-    // INT width;
-    // INT height;
-    // INT i;
-    // WORD bitCount;
+    INT width;
+    INT height;
+    INT i;
+    WORD bitCount;
 
-    // DWORD imageSize;
-    // DWORD headerSize;
-    // HGLOBAL hMem;
-    // LPBYTE lpOutputBits;
-    // LPBITMAPINFOHEADER lpOutputHeader;
+    DWORD imageSize;
+    DWORD headerSize;
+    HGLOBAL hMem;
+    LPBYTE lpOutputBits;
+    LPBITMAPINFOHEADER lpOutputHeader;
 
-    // if (!lpPngData || dwSize < 8) return NULL;
+    if (!lpPngData || dwSize < 8) return NULL;
 
-    // png_buffer = (png_bytep)lpPngData;
-    // png_size = (png_size_t)dwSize;
+    png_buffer = (png_bytep)lpPngData;
+    png_size = (png_size_t)dwSize;
 
-    // if (png_sig_cmp(png_buffer, 0, 8) != 0) return NULL;
+    if (png_sig_cmp(png_buffer, 0, 8) != 0) return NULL;
 
-    // png_ptr = png_create_read_struct(PNG_LIBPNG_VER_STRING, NULL, NULL, NULL);
-    // if (!png_ptr) return NULL;
+    png_ptr = png_create_read_struct(PNG_LIBPNG_VER_STRING, NULL, NULL, NULL);
+    if (!png_ptr) return NULL;
 
-    // info_ptr = png_create_info_struct(png_ptr);
-    // if (!info_ptr) {
-        // png_destroy_read_struct(&png_ptr, NULL, NULL);
-        // return NULL;
-    // }
+    info_ptr = png_create_info_struct(png_ptr);
+    if (!info_ptr) {
+        png_destroy_read_struct(&png_ptr, NULL, NULL);
+        return NULL;
+    }
 
-    // if (setjmp(png_jmpbuf(png_ptr))) {
-        // png_destroy_read_struct(&png_ptr, &info_ptr, NULL);
-        // return NULL;
-    // }
+    if (setjmp(png_jmpbuf(png_ptr))) {
+        png_destroy_read_struct(&png_ptr, &info_ptr, NULL);
+        return NULL;
+    }
 
-    // reader.buffer = png_buffer;
-    // reader.size = png_size;
+    reader.buffer = png_buffer;
+    reader.size = png_size;
 
-    // png_set_read_fn(png_ptr, (png_voidp)&reader, ReadPngData);
-    // png_read_info(png_ptr, info_ptr);
+    png_set_read_fn(png_ptr, (png_voidp)&reader, ReadPngData);
+    png_read_info(png_ptr, info_ptr);
 
-    // width = (INT)png_get_image_width(png_ptr, info_ptr);
-    // height = (INT)png_get_image_height(png_ptr, info_ptr);
-    // bitCount = 32; /* Sempre 32 bits */
+    width = (INT)png_get_image_width(png_ptr, info_ptr);
+    height = (INT)png_get_image_height(png_ptr, info_ptr);
+    bitCount = 32; /* Sempre 32 bits */
 
-    // if (png_get_bit_depth(png_ptr, info_ptr) == 16) {
-        // png_set_strip_16(png_ptr);
-    // }
+    if (png_get_bit_depth(png_ptr, info_ptr) == 16) {
+        png_set_strip_16(png_ptr);
+    }
 
-    // if (png_get_color_type(png_ptr, info_ptr) == PNG_COLOR_TYPE_PALETTE) {
-        // png_set_palette_to_rgb(png_ptr);
-    // }
+    if (png_get_color_type(png_ptr, info_ptr) == PNG_COLOR_TYPE_PALETTE) {
+        png_set_palette_to_rgb(png_ptr);
+    }
 
-    // if (png_get_color_type(png_ptr, info_ptr) == PNG_COLOR_TYPE_GRAY &&
-        // png_get_bit_depth(png_ptr, info_ptr) < 8) {
-        // png_set_expand_gray_1_2_4_to_8(png_ptr);
-    // }
+    if (png_get_color_type(png_ptr, info_ptr) == PNG_COLOR_TYPE_GRAY &&
+        png_get_bit_depth(png_ptr, info_ptr) < 8) {
+        png_set_expand_gray_1_2_4_to_8(png_ptr);
+    }
 
-    // if (png_get_valid(png_ptr, info_ptr, PNG_INFO_tRNS)) {
-        // png_set_tRNS_to_alpha(png_ptr);
-    // }
+    if (png_get_valid(png_ptr, info_ptr, PNG_INFO_tRNS)) {
+        png_set_tRNS_to_alpha(png_ptr);
+    }
 
-    // if (png_get_color_type(png_ptr, info_ptr) == PNG_COLOR_TYPE_RGB ||
-        // png_get_color_type(png_ptr, info_ptr) == PNG_COLOR_TYPE_GRAY) {
-        // png_set_add_alpha(png_ptr, 0xff, PNG_FILLER_AFTER);
-    // }
+    if (png_get_color_type(png_ptr, info_ptr) == PNG_COLOR_TYPE_RGB ||
+        png_get_color_type(png_ptr, info_ptr) == PNG_COLOR_TYPE_GRAY) {
+        png_set_add_alpha(png_ptr, 0xff, PNG_FILLER_AFTER);
+    }
 
-    // png_set_bgr(png_ptr);
-    // png_read_update_info(png_ptr, info_ptr);
+    png_set_bgr(png_ptr);
+    png_read_update_info(png_ptr, info_ptr);
 
-    // row_pointers = (png_bytep *)HeapAlloc(GetProcessHeap(), 0, sizeof(png_bytep) * height);
-    // if (!row_pointers) {
-        // png_destroy_read_struct(&png_ptr, &info_ptr, NULL);
-        // return NULL;
-    // }
+    row_pointers = (png_bytep *)HeapAlloc(GetProcessHeap(), 0, sizeof(png_bytep) * height);
+    if (!row_pointers) {
+        png_destroy_read_struct(&png_ptr, &info_ptr, NULL);
+        return NULL;
+    }
 
-    // imageSize = width * height * 4;
-    // headerSize = sizeof(BITMAPINFOHEADER);
-    // hMem = GlobalAlloc(GMEM_MOVEABLE, headerSize + imageSize);
-    // if (!hMem) {
-        // HeapFree(GetProcessHeap(), 0, row_pointers);
-        // png_destroy_read_struct(&png_ptr, &info_ptr, NULL);
-        // return NULL;
-    // }
+    imageSize = width * height * 4;
+    headerSize = sizeof(BITMAPINFOHEADER);
+    hMem = GlobalAlloc(GMEM_MOVEABLE, headerSize + imageSize);
+    if (!hMem) {
+        HeapFree(GetProcessHeap(), 0, row_pointers);
+        png_destroy_read_struct(&png_ptr, &info_ptr, NULL);
+        return NULL;
+    }
 
-    // lpOutputHeader = (LPBITMAPINFOHEADER)GlobalLock(hMem);
-    // if (!lpOutputHeader) {
-        // HeapFree(GetProcessHeap(), 0, row_pointers);
-        // GlobalFree(hMem);
-        // png_destroy_read_struct(&png_ptr, &info_ptr, NULL);
-        // return NULL;
-    // }
+    lpOutputHeader = (LPBITMAPINFOHEADER)GlobalLock(hMem);
+    if (!lpOutputHeader) {
+        HeapFree(GetProcessHeap(), 0, row_pointers);
+        GlobalFree(hMem);
+        png_destroy_read_struct(&png_ptr, &info_ptr, NULL);
+        return NULL;
+    }
 
-    // lpOutputBits = (LPBYTE)(lpOutputHeader + 1);
+    lpOutputBits = (LPBYTE)(lpOutputHeader + 1);
 
-    // for (i = 0; i < height; i++) {
-        // row_pointers[height - 1 - i] = lpOutputBits + (i * width * 4);
-    // }
+    for (i = 0; i < height; i++) {
+        row_pointers[height - 1 - i] = lpOutputBits + (i * width * 4);
+    }
 
-    // png_read_image(png_ptr, row_pointers);
+    png_read_image(png_ptr, row_pointers);
 
-    // lpOutputHeader->biSize = sizeof(BITMAPINFOHEADER);
-    // lpOutputHeader->biWidth = width;
-    // lpOutputHeader->biHeight = height;
-    // lpOutputHeader->biPlanes = 1;
-    // lpOutputHeader->biBitCount = bitCount;
-    // lpOutputHeader->biCompression = BI_RGB;
-    // lpOutputHeader->biSizeImage = imageSize;
-    // lpOutputHeader->biXPelsPerMeter = 0;
-    // lpOutputHeader->biYPelsPerMeter = 0;
-    // lpOutputHeader->biClrUsed = 0;
-    // lpOutputHeader->biClrImportant = 0;
+    lpOutputHeader->biSize = sizeof(BITMAPINFOHEADER);
+    lpOutputHeader->biWidth = width;
+    lpOutputHeader->biHeight = height;
+    lpOutputHeader->biPlanes = 1;
+    lpOutputHeader->biBitCount = bitCount;
+    lpOutputHeader->biCompression = BI_RGB;
+    lpOutputHeader->biSizeImage = imageSize;
+    lpOutputHeader->biXPelsPerMeter = 0;
+    lpOutputHeader->biYPelsPerMeter = 0;
+    lpOutputHeader->biClrUsed = 0;
+    lpOutputHeader->biClrImportant = 0;
 
-    // png_destroy_read_struct(&png_ptr, &info_ptr, NULL);
-    // HeapFree(GetProcessHeap(), 0, row_pointers);
+    png_destroy_read_struct(&png_ptr, &info_ptr, NULL);
+    HeapFree(GetProcessHeap(), 0, row_pointers);
 
-    // GlobalUnlock(hMem);
-    // return (LPBITMAPINFOHEADER)GlobalLock(hMem);
-// }
+    GlobalUnlock(hMem);
+    return (LPBITMAPINFOHEADER)GlobalLock(hMem);
+}
 
-HICON __stdcall ConvertToDIBProc(LPBITMAPINFOHEADER lpPngData, DWORD dwSize)
+HICON __stdcall ConvertToIconProc(LPBITMAPINFOHEADER lpPngData, DWORD dwSize)
 {
     png_structp png_ptr;
     png_infop info_ptr;
@@ -390,7 +390,7 @@ BOOL WINAPI DllMain(HINSTANCE hinstDLL, DWORD fdwReason, LPVOID lpvReserved)
     switch (fdwReason)
     {
         case DLL_PROCESS_ATTACH:
-            PrivateRegisterICSProc((PCONVERT_TO_DIB_PROC)ConvertToDIBProc);
+            PrivateRegisterICSProc((PCONVERT_TO_DIB_PROC)ConvertToIconProc);
             break;
     }
 

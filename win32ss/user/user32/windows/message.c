@@ -273,6 +273,8 @@ static WPARAM FASTCALL map_wparam_char_WtoA( WPARAM wParam, DWORD len )
     return MAKEWPARAM( ch[0], HIWORD(wParam) );
 }
 
+BOOLEAN NTSYSAPI NlsMbCodePageTag;
+
 /***********************************************************************
  *		map_wparam_AtoW
  *
