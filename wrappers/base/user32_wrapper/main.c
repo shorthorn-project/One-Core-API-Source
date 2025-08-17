@@ -29,13 +29,10 @@ BOOL WINAPI DllMain(HINSTANCE hInstDLL, DWORD fdwReason, LPVOID lpv)
     switch(fdwReason)
     {
         case DLL_PROCESS_ATTACH:
-			DbgPrint("DllMain:: DLL_PROCESS_ATTACH called\n");
 			userBaseHinst = GetModuleHandleA("userbase.dll");
 			if(userBaseHinst){
-				DbgPrint("DllMain::we have userBaseHinst\n");
 				PrivateRegisterICSProcAddr = TryGetProcedure("PrivateRegisterICSProc");
 				if(PrivateRegisterICSProcAddr){
-					DbgPrint("We got PrivateRegisterICSProc address\n");
 					IsNativePNGConversor = TRUE;					
 				}				
 			}
@@ -86,10 +83,8 @@ PVOID TryGetProcedure(char* procedureName){
 	PVOID procedureAddress;
 	
 	if(userBaseHinst){
-		DbgPrint("TryGetProcedure:: we have userBaseHinst\n");
 		procedureAddress = GetProcAddress(userBaseHinst, procedureName);
 		if(procedureAddress){
-			DbgPrint("TryGetProcedure:: success to get procedureAddress\n");
 			//FreeLibrary(userbaseModule);
 			return procedureAddress;
 		}else{

@@ -648,18 +648,12 @@ UINT WINAPI PrivateExtractIconsWHook (
 {
 	UINT resp;
 	
-	DbgPrint("%s %d %dx%d %p %p %d 0x%08x\n",
+	TRACE("%s %d %dx%d %p %p %d 0x%08x\n",
 	      debugstr_w(lpwstrFile), nIndex, sizeX, sizeY, phicon, pIconId, nIcons, flags);
-		  
-	// if(IsNativePNGConversor){
-		// return PrivateExtractIconsW(lpwstrFile, nIndex, sizeX, sizeY, phicon, pIconId, nIcons, flags); 
-	// }
 		  
 	//Ugly hack for bypass reactos/wine problem with some icons, mainly quick launch		  
     resp = PrivateExtractIconsW(lpwstrFile, nIndex, sizeX, sizeY, phicon, pIconId, nIcons, flags);
     if(resp == nIcons || IsNativePNGConversor){
-    //if(resp == nIcons){
-         DbgPrint("PrivateExtractIconsWHook:: resp: %d\n", resp);
          return resp;
     }
 
