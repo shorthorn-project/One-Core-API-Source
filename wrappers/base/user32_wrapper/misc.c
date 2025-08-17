@@ -1,25 +1,26 @@
-/*
- * Copyright 2009 Henri Verbeet for CodeWeavers
- *
- * This library is free software; you can redistribute it and/or
- * modify it under the terms of the GNU Lesser General Public
- * License as published by the Free Software Foundation; either
- * version 2.1 of the License, or (at your option) any later version.
- *
- * This library is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
- * Lesser General Public License for more details.
- *
- * You should have received a copy of the GNU Lesser General Public
- * License along with this library; if not, write to the Free Software
- * Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301, USA
- *
- */
+/*++
+
+Copyright (c) 2025 Shorthorn Project
+
+Module Name:
+
+    main.c
+
+Abstract:
+
+    Implement Misc functions
+
+Author:
+
+    Skulltrail 16-August-2025
+
+Revision History:
+
+--*/
 
 #include <main.h>
 
-WINE_DEFAULT_DEBUG_CHANNEL(user32);
+WINE_DEFAULT_DEBUG_CHANNEL(misc);
 
 HANDLE section = NULL;
 static BOOL (WINAPI *pIsSETEnabled)();
@@ -69,28 +70,17 @@ BOOL WINAPI ThemeSetCurrentSection(HANDLE Section)
 	return TRUE;
 }
 
-/**********************************************************************
- * RegisterSuspendResumeNotification (USER32.@)
- */
-HPOWERNOTIFY WINAPI RegisterSuspendResumeNotification(HANDLE recipient, DWORD flags)
-{
-    FIXME("%p, %#lx: stub.\n", recipient, flags);
-    return (HPOWERNOTIFY)0xdeadbeef;
-}
-
-/**********************************************************************
- * UnregisterSuspendResumeNotification (USER32.@)
- */
-BOOL WINAPI UnregisterSuspendResumeNotification(HPOWERNOTIFY handle)
-{
-    FIXME("%p: stub.\n", handle);
-    return TRUE;
-}
-
 BOOL WINAPI GetPointerDevice(HANDLE device, POINTER_DEVICE_INFO *dev) {
 	return FALSE;
 }
 
 BOOL WINAPI SkipPointerFrameMessages(UINT32 ID) {
+	return TRUE;
+}
+
+BOOL WINAPI GetInputLocaleInfo(LCID locale, LPCWSTR localName)
+{
+	localName = L"en-US";
+	DbgPrint("GetInputLocaleInfo is UNIMPLEMENTED\n"); 
 	return TRUE;
 }

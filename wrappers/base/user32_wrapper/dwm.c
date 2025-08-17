@@ -44,67 +44,10 @@ BOOL WINAPI DwmSetRedirSurfacePresentFlags(HANDLE a1, BOOL a2)
 	return TRUE;
 }
 
-// BOOL WINAPI DwmShutdown()
-// {
-	// DbgPrint("DwmShutdown is UNIMPLEMENTED\n");	
-	// return TRUE;
-// }
-
-// NTSTATUS WINAPI DwmStartupClient()
-// {
-	// return 1;
-// }
-
-// BOOL WINAPI DwmStartup(HANDLE Object)
-// {
-  // ULONG error; // eax@14
-  // BOOL resp; // esi@1
-  // NTSTATUS status; // ebx@2
-
-  // resp = FALSE;
-  // if ( gpepDwm )
-  // {
-    // SetLastError(5);
-  // }
-  // //status = ObReferenceObjectByHandle(Object, 0, (POBJECT_TYPE)LpcPortObjectType, 1, &Object, 0);
-  // gDwmApiPort = Object;
-  // gpepDwm = GetCurrentProcess();
-  // status = DwmStartupClient();
-  // if ( status >= 0 )
-  // {
-    // resp = TRUE;
-  // }
-  // if ( gDwmApiPort )
-     // gDwmApiPort = NULL;
-  // gpepDwm = 0;
-  // if ( RtlNtStatusToDosError(status) )
-  // {
-    // error = RtlNtStatusToDosError(status);
-    // SetLastError(error);
-  // }
-  // return resp; 
-// }
-
-// BOOL WINAPI DwmGetSurfaceData(HANDLE h1, HANDLE h2)
-// {
-	// DbgPrint("DwmGetSurfaceData is UNIMPLEMENTED\n");	
-	// return TRUE;
-// }
-
 int WINAPI DCEQueryMode()
 {
 	return 0;
 }
-
-// int WINAPI StartDCE()
-// {
-	// return 0;
-// }
-
-// int WINAPI StopDCE()
-// {
-	// return 0;
-// }
 
 DWORD WINAPI DwmStartRedirection(HWND a1)
 {
@@ -120,4 +63,12 @@ DWORD WINAPI DwmStopRedirection()
 
 NTSTATUS WINAPI DwmHintDxUpdate(HANDLE window, DWORD option){
 	return STATUS_SUCCESS;
+}
+
+BOOL 
+WINAPI 
+IsThreadDesktopComposited ( ) 
+{
+	DbgPrint("IsThreadDesktopComposited is UNIMPLEMENTED\n");  
+	return FALSE;
 }

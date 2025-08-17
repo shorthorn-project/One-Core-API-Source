@@ -19,7 +19,9 @@ elseif(ARCH STREQUAL "i386")
 endif()
 
 list(APPEND SOURCE
-	dib.c
+	clipboard.c
+	cursor.c
+	desktop.c
 	display.c
 	dpi.c
 	dwm.c
@@ -31,7 +33,7 @@ list(APPEND SOURCE
     main.c
 	message.c
 	misc.c
-	paint.c
+	notification.c
 	process.c
 	shutdown.c
 	sysparams.c

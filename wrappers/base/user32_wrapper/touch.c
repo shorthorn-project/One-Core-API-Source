@@ -1,21 +1,22 @@
-/*
- * Copyright 2009 Henri Verbeet for CodeWeavers
- *
- * This library is free software; you can redistribute it and/or
- * modify it under the terms of the GNU Lesser General Public
- * License as published by the Free Software Foundation; either
- * version 2.1 of the License, or (at your option) any later version.
- *
- * This library is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
- * Lesser General Public License for more details.
- *
- * You should have received a copy of the GNU Lesser General Public
- * License along with this library; if not, write to the Free Software
- * Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301, USA
- *
- */
+/*++
+
+Copyright (c) 2022 Shorthorn Project
+
+Module Name:
+
+    syspams.c
+
+Abstract:
+
+    Implement Touch Screen Support functions
+
+Author:
+
+    Skulltrail 14-February-2022
+
+Revision History:
+
+--*/
 
 #include <main.h>
 
@@ -115,78 +116,6 @@ BOOL WINAPI UnregisterTouchWindow(
 	return TRUE;
 }
 
-DWORD64 WINAPI GetTouchInputDataSize(UINT parameter)
-{
-  DWORD64 resp; // qax@1
-
-  resp = 40i64 * parameter;
-  if ( resp > 0xFFFFFFFF )
-    resp = 0;
-  return resp;
-}
-
-BOOL WINAPI GetTouchInputInfoWorker(HTOUCHINPUT hTouchInput, UINT cInputs, PTOUCHINPUT pInputs, int cbSize)
-{
-  UINT localInputs; // edi@1
-  BOOL resp; // ebx@1
-  PBOOL verification; // eax@4
-  UINT sizeVerification; // eax@6
-  UINT division; // esi@6
-  DWORD64 dataSize; // eax@6
-  DWORD64 LocalSizeA; // ecx@6
-  UINT resulOperation; // eax@6
-  BOOL error; // [sp-4h] [bp-Ch]@5
-  PBOOL used; // [sp+10h] [bp+8h]@4
-  UINT Sizea; // [sp+14h] [bp+Ch]@6
-
-  localInputs = cInputs;
-  resp = 1;
-  if ( cInputs && pInputs )
-  {
-    if ( LockUMHandleList(&CriticalSectionObject) )
-    {
-      verification = (PBOOL)UMHandleActiveEntryFromHandle(CriticalSectionObject, hTouchInput);
-      used = verification;
-      if ( !verification )
-      {
-        error = 6;
-LABEL_9:
-        RtlSetLastWin32Error(error);
-        resp = 0;
-LABEL_13:
-        UnlockUMHandleList(&CriticalSectionObject);
-        return resp;
-      }
-      sizeVerification = verification[2];
-      Sizea = sizeVerification;
-      division = sizeVerification / 0x28;
-      dataSize = GetTouchInputDataSize(sizeVerification / 0x28);
-      LocalSizeA = Sizea;
-      resulOperation = dataSize == Sizea ? division : 0;
-      if ( cbSize )
-      {
-        if ( resulOperation != localInputs )
-        {
-          error = 87;
-          goto LABEL_9;
-        }
-      }
-      else
-      {
-        if ( resulOperation > localInputs )
-          LocalSizeA = GetTouchInputDataSize(localInputs);
-      }
-      memcpy(pInputs, (const void *)used[3], LocalSizeA);
-      goto LABEL_13;
-    }
-  }
-  else
-  {
-    RtlSetLastWin32Error(87);
-  }
-  return 0;
-}
-
 BOOL WINAPI GetTouchInputInfo(
   _In_   HTOUCHINPUT hTouchInput,
   _In_   UINT cInputs,
@@ -227,45 +156,9 @@ BOOL WINAPI UnregisterPointerInputTarget(
 	return TRUE;
 }
 
-HRESULT WINAPI PackTouchHitTestingProximityEvaluation(const TOUCH_HIT_TESTING_INPUT *pHitTestingInput, const TOUCH_HIT_TESTING_PROXIMITY_EVALUATION *pProximityEval)
-{
-  int proximityEval; // esi@1
-  int proximityDistance; // edi@1
-  HRESULT result; // eax@4
-
-  proximityEval = pProximityEval->adjustedPoint.x - pHitTestingInput->point.x;
-  proximityDistance = pProximityEval->adjustedPoint.y - pHitTestingInput->point.y;
-  if ( pProximityEval->score > 0xFFFu || abs(proximityEval) >= 511 || abs(proximityDistance) >= 511 )
-    result = 0xFFF00000u;
-  else
-    result = (proximityDistance & 0x3FF) + (((proximityEval & 0x3FF) + (pProximityEval->score << 10)) << 10);
-  return result;
-}
-
 BOOL WINAPI PtInRect(const RECT *lprc, POINT pt)
 {
   return lprc && pt.x >= lprc->left && pt.x < lprc->right && pt.y >= lprc->top && pt.y < lprc->bottom;
-}
-
-BOOL WINAPI _ValidatePointerTargetingInput(const TOUCH_HIT_TESTING_INPUT *testingInput)
-{
-  POINT pointY; // ST04_8@1
-  RECT localRect; // qdi@1
-  LONG right; // eax@8
-  LONG left; // eax@10
-
-  pointY.y = testingInput->point.y;
-  localRect = testingInput->boundingBox;
-  pointY.x = testingInput->point.x;
-  return (PtInRect(&testingInput->boundingBox, pointY)
-       || (right = testingInput->point.x, localRect.left == right)
-       && testingInput->boundingBox.right == right
-       && (left = testingInput->point.y, testingInput->boundingBox.top == left)
-       && testingInput->boundingBox.bottom == left)
-      && localRect.left <= testingInput->nonOccludedBoundingBox.left
-      && testingInput->boundingBox.right >= testingInput->nonOccludedBoundingBox.right
-      && testingInput->boundingBox.top <= testingInput->nonOccludedBoundingBox.top
-      && testingInput->boundingBox.bottom >= testingInput->nonOccludedBoundingBox.bottom;
 }
 
 BOOL WINAPI GetGestureInfo(
@@ -331,22 +224,10 @@ EvaluateProximityToRect(
 	return FALSE;
 }
 
-// /**********************************************************************
- // * GetPointerDevices [USER32.@]
- // */
-// BOOL WINAPI GetPointerDevices(UINT32 *device_count, POINTER_DEVICE_INFO *devices)
-// {
-    // DbgPrint("GetPointerDevices (%p %p): partial stub\n", device_count, devices);
-
-    // if (!device_count)
-        // return FALSE;
-
-    // if (devices)
-        // return FALSE;
-
-    // *device_count = 0;
-    // return TRUE;
-// }
+BOOL WINAPI GetPointerDevices(UINT32 *DeviceCount, POINTER_DEVICE_INFO *Devices) {
+	*DeviceCount = 0;
+	return TRUE;
+}
 
 BOOL 
 WINAPI 
@@ -380,4 +261,103 @@ RegisterTouchHitTestingWindow(
 {
 	DbgPrint("RegisterTouchHitTestingWindow is UNIMPLEMENTED\n");		
 	return TRUE;
+}
+
+BOOL WINAPI GetPointerInfo(UINT32 pointerId, POINTER_INFO *pointerInfo) {
+	pointerInfo->pointerType = PT_MOUSE;
+	pointerInfo->pointerId = pointerId;
+	pointerInfo->frameId = 0;
+	pointerInfo->pointerFlags = POINTER_FLAG_NONE;
+	pointerInfo->sourceDevice = NULL;
+	pointerInfo->hwndTarget = NULL;
+	GetCursorPos(&pointerInfo->ptPixelLocation);
+	GetCursorPos(&pointerInfo->ptHimetricLocation);
+	GetCursorPos(&pointerInfo->ptPixelLocationRaw);
+	GetCursorPos(&pointerInfo->ptHimetricLocationRaw);
+	pointerInfo->dwTime = 0;
+	pointerInfo->historyCount = 1;
+	pointerInfo->InputData = 0;
+	pointerInfo->dwKeyStates = 0;
+	pointerInfo->PerformanceCount = 0;
+	pointerInfo->ButtonChangeType = POINTER_CHANGE_NONE;
+
+	return FALSE;
+}
+
+BOOL WINAPI GetPointerTouchInfoHistory(UINT32 pointerId, UINT32 *entriesCount, POINTER_TOUCH_INFO *touchInfo) {
+	SetLastError(ERROR_DATATYPE_MISMATCH);
+	return FALSE;
+}
+BOOL WINAPI GetPointerInfoHistory(UINT32 pointerId, UINT32 *entriesCount, POINTER_INFO *pointerInfo) {
+	if (*entriesCount != 0) {
+		GetPointerInfo(pointerId, pointerInfo);
+		*entriesCount = 1;
+	}
+	return TRUE;
+}
+BOOL WINAPI GetPointerPenInfoHistory(UINT32 pointerId, UINT32 *entriesCount, POINTER_PEN_INFO *penInfo) {
+	SetLastError(ERROR_DATATYPE_MISMATCH);
+	return FALSE;
+}
+BOOL WINAPI GetPointerPenInfo(UINT32 pointerId, POINTER_PEN_INFO *pointerType) {
+	GetPointerInfo(pointerId, &(pointerType->pointerInfo));
+	pointerType->penFlags = 0;
+	pointerType->penMask = 1;
+	pointerType->pressure = 0;
+	pointerType->tiltX = 0;
+	pointerType->tiltY = 0;
+	return TRUE;
+}
+BOOL WINAPI GetPointerFrameTouchInfo(UINT32 PointerID, UINT32 *Pointers, POINTER_TOUCH_INFO *Info) {
+	SetLastError(ERROR_DATATYPE_MISMATCH);
+	return FALSE;
+}
+BOOL WINAPI GetPointerFrameTouchInfoHistory(UINT32 PointerID, UINT32 *Entries, UINT32 *Pointers, POINTER_TOUCH_INFO *Info) {
+	SetLastError(ERROR_DATATYPE_MISMATCH);
+	return FALSE;
+}
+BOOL WINAPI GetPointerFrameInfo(UINT32 PointerID, UINT32 *Pointers, POINTER_INFO *Info) {
+	*Pointers = 1;
+	GetPointerInfo(PointerID, Info);
+	return TRUE;
+}
+BOOL WINAPI GetPointerTouchInfo(UINT32 PointerID, POINTER_TOUCH_INFO *Info) {
+	SetLastError(ERROR_DATATYPE_MISMATCH);
+	return FALSE;
+}
+BOOL WINAPI GetPointerFrameInfoHistory(UINT32 PointerID, UINT32 *Entries, UINT32 *Pointers, POINTER_INFO *Info) {
+	*Entries = 1;
+	*Pointers = 1;
+	GetPointerInfo(PointerID, Info);
+	return TRUE;
+}
+BOOL WINAPI GetPointerDeviceRects(HANDLE device, RECT *pointerDeviceRect, RECT *displayRect) {
+	if (displayRect != 0) {
+		displayRect->top = 0;
+		displayRect->right = 0;
+		displayRect->bottom = GetSystemMetrics(SM_CYVIRTUALSCREEN);
+		displayRect->left = GetSystemMetrics(SM_CXVIRTUALSCREEN);
+	}
+	if (pointerDeviceRect != 0) {
+		pointerDeviceRect->top = 0;
+		pointerDeviceRect->right = 0;
+		pointerDeviceRect->bottom = GetSystemMetrics(SM_CYVIRTUALSCREEN);
+		pointerDeviceRect->left = GetSystemMetrics(SM_CXVIRTUALSCREEN);
+	}
+	return TRUE;
+}
+
+HRESULT WINAPI PackTouchHitTestingProximityEvaluation(const TOUCH_HIT_TESTING_INPUT *pHitTestingInput, const TOUCH_HIT_TESTING_PROXIMITY_EVALUATION *pProximityEval)
+{
+  int proximityEval; // esi@1
+  int proximityDistance; // edi@1
+  HRESULT result; // eax@4
+
+  proximityEval = pProximityEval->adjustedPoint.x - pHitTestingInput->point.x;
+  proximityDistance = pProximityEval->adjustedPoint.y - pHitTestingInput->point.y;
+  if ( pProximityEval->score > 0xFFFu || abs(proximityEval) >= 511 || abs(proximityDistance) >= 511 )
+    result = 0xFFF00000u;
+  else
+    result = (proximityDistance & 0x3FF) + (((proximityEval & 0x3FF) + (pProximityEval->score << 10)) << 10);
+  return result;
 }

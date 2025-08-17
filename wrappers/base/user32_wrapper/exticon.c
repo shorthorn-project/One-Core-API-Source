@@ -651,9 +651,14 @@ UINT WINAPI PrivateExtractIconsWHook (
 	DbgPrint("%s %d %dx%d %p %p %d 0x%08x\n",
 	      debugstr_w(lpwstrFile), nIndex, sizeX, sizeY, phicon, pIconId, nIcons, flags);
 		  
+	// if(IsNativePNGConversor){
+		// return PrivateExtractIconsW(lpwstrFile, nIndex, sizeX, sizeY, phicon, pIconId, nIcons, flags); 
+	// }
+		  
 	//Ugly hack for bypass reactos/wine problem with some icons, mainly quick launch		  
     resp = PrivateExtractIconsW(lpwstrFile, nIndex, sizeX, sizeY, phicon, pIconId, nIcons, flags);
-    if(resp == nIcons){
+    if(resp == nIcons || IsNativePNGConversor){
+    //if(resp == nIcons){
          DbgPrint("PrivateExtractIconsWHook:: resp: %d\n", resp);
          return resp;
     }
@@ -688,6 +693,11 @@ UINT WINAPI PrivateExtractIconsAHook (
     UINT ret;
     INT len = MultiByteToWideChar(CP_ACP, 0, lpstrFile, -1, NULL, 0);
     LPWSTR lpwstrFile = HeapAlloc(GetProcessHeap(), 0, len * sizeof(WCHAR));
+	
+	if(IsNativePNGConversor){
+		return PrivateExtractIconsA(lpstrFile, nIndex, sizeX, sizeY, RetPtr, pIconId, nIcons, flags);
+	}
+	
 #ifdef __REACTOS__
     if (lpwstrFile == NULL)
         return 0;
@@ -720,7 +730,7 @@ UINT WINAPI PrivateExtractIconExWHook (
 	
 	//Ugly hack for bypass reactos/wine problem with some icons, mainly quick launch		  
     ret = PrivateExtractIconExW(lpwstrFile, nIndex, phIconLarge, phIconSmall, nIcons);
-    if(ret == nIcons){
+    if(ret == nIcons || IsNativePNGConversor){
          DbgPrint("PrivateExtractIconExWHook:: resp: %d\n", ret);
          return ret;
     }	
@@ -800,6 +810,11 @@ UINT WINAPI PrivateExtractIconExAHook (
 	UINT ret;
 	INT len = MultiByteToWideChar(CP_ACP, 0, lpstrFile, -1, NULL, 0);
 	LPWSTR lpwstrFile = HeapAlloc(GetProcessHeap(), 0, len * sizeof(WCHAR));
+	
+	if(IsNativePNGConversor){
+		return PrivateExtractIconExA(lpstrFile, nIndex, phIconLarge, phIconSmall, nIcons);
+	}	
+	
 #ifdef __REACTOS__
     if (lpwstrFile == NULL)
         return 0;

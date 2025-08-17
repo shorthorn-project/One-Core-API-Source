@@ -688,7 +688,7 @@
 @ stdcall UpdatePerUserSystemParameters(long long)
 @ stdcall UpdateWindow(long)
 @ stdcall User32InitializeImmEntryTable(ptr)
-@ stdcall UserClientDllInitialize(long long ptr) DllMain
+@ stdcall UserClientDllInitialize(long long ptr)
 @ stdcall UserHandleGrantAccess(ptr ptr long) ;NtUserUserHandleGrantAccess
 @ stdcall UserLpkPSMTextOut(long long long long long long)
 @ stdcall UserLpkTabbedTextOut(long long long long long long long long long long long long)

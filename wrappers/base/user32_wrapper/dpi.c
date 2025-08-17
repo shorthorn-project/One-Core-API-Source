@@ -132,92 +132,6 @@ BOOL WINAPI AdjustWindowRectExForDpi(RECT *lpRect, DWORD dwStyle, BOOL bMenu, DW
 BOOL WINAPI IsValidDpiAwarenessContext(DPI_AWARENESS_CONTEXT value) {
 	return GetAwarenessFromDpiAwarenessContext(value) != DPI_AWARENESS_INVALID;
 }
-BOOL WINAPI GetPointerInfo(UINT32 pointerId, POINTER_INFO *pointerInfo) {
-	pointerInfo->pointerType = PT_MOUSE;
-	pointerInfo->pointerId = pointerId;
-	pointerInfo->frameId = 0;
-	pointerInfo->pointerFlags = POINTER_FLAG_NONE;
-	pointerInfo->sourceDevice = NULL;
-	pointerInfo->hwndTarget = NULL;
-	GetCursorPos(&pointerInfo->ptPixelLocation);
-	GetCursorPos(&pointerInfo->ptHimetricLocation);
-	GetCursorPos(&pointerInfo->ptPixelLocationRaw);
-	GetCursorPos(&pointerInfo->ptHimetricLocationRaw);
-	pointerInfo->dwTime = 0;
-	pointerInfo->historyCount = 1;
-	pointerInfo->InputData = 0;
-	pointerInfo->dwKeyStates = 0;
-	pointerInfo->PerformanceCount = 0;
-	pointerInfo->ButtonChangeType = POINTER_CHANGE_NONE;
-
-	return FALSE;
-}
-BOOL WINAPI GetPointerDevices(UINT32 *DeviceCount, POINTER_DEVICE_INFO *Devices) {
-	*DeviceCount = 0;
-	return TRUE;
-}
-BOOL WINAPI GetPointerTouchInfoHistory(UINT32 pointerId, UINT32 *entriesCount, POINTER_TOUCH_INFO *touchInfo) {
-	SetLastError(ERROR_DATATYPE_MISMATCH);
-	return FALSE;
-}
-BOOL WINAPI GetPointerInfoHistory(UINT32 pointerId, UINT32 *entriesCount, POINTER_INFO *pointerInfo) {
-	if (*entriesCount != 0) {
-		GetPointerInfo(pointerId, pointerInfo);
-		*entriesCount = 1;
-	}
-	return TRUE;
-}
-BOOL WINAPI GetPointerPenInfoHistory(UINT32 pointerId, UINT32 *entriesCount, POINTER_PEN_INFO *penInfo) {
-	SetLastError(ERROR_DATATYPE_MISMATCH);
-	return FALSE;
-}
-BOOL WINAPI GetPointerPenInfo(UINT32 pointerId, POINTER_PEN_INFO *pointerType) {
-	GetPointerInfo(pointerId, &(pointerType->pointerInfo));
-	pointerType->penFlags = 0;
-	pointerType->penMask = 1;
-	pointerType->pressure = 0;
-	pointerType->tiltX = 0;
-	pointerType->tiltY = 0;
-	return TRUE;
-}
-BOOL WINAPI GetPointerFrameTouchInfo(UINT32 PointerID, UINT32 *Pointers, POINTER_TOUCH_INFO *Info) {
-	SetLastError(ERROR_DATATYPE_MISMATCH);
-	return FALSE;
-}
-BOOL WINAPI GetPointerFrameTouchInfoHistory(UINT32 PointerID, UINT32 *Entries, UINT32 *Pointers, POINTER_TOUCH_INFO *Info) {
-	SetLastError(ERROR_DATATYPE_MISMATCH);
-	return FALSE;
-}
-BOOL WINAPI GetPointerFrameInfo(UINT32 PointerID, UINT32 *Pointers, POINTER_INFO *Info) {
-	*Pointers = 1;
-	GetPointerInfo(PointerID, Info);
-	return TRUE;
-}
-BOOL WINAPI GetPointerTouchInfo(UINT32 PointerID, POINTER_TOUCH_INFO *Info) {
-	SetLastError(ERROR_DATATYPE_MISMATCH);
-	return FALSE;
-}
-BOOL WINAPI GetPointerFrameInfoHistory(UINT32 PointerID, UINT32 *Entries, UINT32 *Pointers, POINTER_INFO *Info) {
-	*Entries = 1;
-	*Pointers = 1;
-	GetPointerInfo(PointerID, Info);
-	return TRUE;
-}
-BOOL WINAPI GetPointerDeviceRects(HANDLE device, RECT *pointerDeviceRect, RECT *displayRect) {
-	if (displayRect != 0) {
-		displayRect->top = 0;
-		displayRect->right = 0;
-		displayRect->bottom = GetSystemMetrics(SM_CYVIRTUALSCREEN);
-		displayRect->left = GetSystemMetrics(SM_CXVIRTUALSCREEN);
-	}
-	if (pointerDeviceRect != 0) {
-		pointerDeviceRect->top = 0;
-		pointerDeviceRect->right = 0;
-		pointerDeviceRect->bottom = GetSystemMetrics(SM_CYVIRTUALSCREEN);
-		pointerDeviceRect->left = GetSystemMetrics(SM_CXVIRTUALSCREEN);
-	}
-	return TRUE;
-}
 
 HRESULT WINAPI GetProcessDpiAwareness(HANDLE hProcess, PROCESS_DPI_AWARENESS *value) {
 	if (!value)
@@ -433,4 +347,15 @@ GetWindowDpiAwarenessContext(HWND hWnd) {
     if (GetDpiForSystem() == 96 && GetDpiForWindow(hWnd) != 96)
         return DPI_AWARENESS_CONTEXT_SYSTEM_AWARE;
     return DPI_AWARENESS_CONTEXT_UNAWARE;
+}
+
+/***********************************************************************
+ *           NtUserGetDpiForMonitor   (win32u.@)
+ */
+BOOL WINAPI NtUserGetDpiForMonitor( HMONITOR monitor, UINT type, UINT *x, UINT *y )
+{
+	//Return normal and default size on Windows XP
+	*x = 96;
+	*y = 96;
+	return TRUE;
 }

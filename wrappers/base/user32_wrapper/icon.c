@@ -685,20 +685,27 @@ HICON LoadImagePngFromResource(HINSTANCE hInstance, LPCWSTR name,
 
 BOOL 
 WINAPI 
-PrivateRegisterICSProc(RegisterCallback registrator)
+PrivateRegisterICSProc(PCONVERT_TO_DIB_PROC AddrOfFn)
 {
-  BOOL result; // eax@2
+	BOOL result;
 
-  if ( gpICSProc )
-  {
-    result = FALSE;
-  }
-  else
-  {
-    gpICSProc = registrator;
-    result = TRUE;
-  }
-  return result;
+	// if(PrivateRegisterICSProcAddr)
+	// {
+		// return PrivateRegisterICSProcAddr(AddrOfFn);
+	// }else{
+		// DbgPrint("Failed to got PrivateRegisterICSProc address\n");
+	// } 
+
+	if ( gpICSProc )
+	{
+		result = FALSE;
+	}
+	else
+	{
+		gpICSProc = AddrOfFn;
+		result = TRUE;
+	}
+	return result;
 }
 
 /**********************************************************************
@@ -771,8 +778,9 @@ HICON WINAPI CreateIconFromResourceHook(
 )
 {
 	HICON hIcon = NULL;
-	
-	if(memcmp(presbits, ICO_PNG_SIGNATURE, 8) == 0){
+
+	if((memcmp(presbits, ICO_PNG_SIGNATURE, 8) == 0) && !IsNativePNGConversor){
+	//if((memcmp(presbits, ICO_PNG_SIGNATURE, 8) == 0)){
 		hIcon = CreateIconFromPngBits(presbits, dwResSize);
 	}else{
 		hIcon = CreateIconFromResource(presbits, dwResSize, fIcon, dwVer);	
@@ -793,7 +801,8 @@ HICON WINAPI CreateIconFromResourceExHook(
 {
 	HICON hIcon = NULL;
 	
-	if(memcmp(pbIconBits, ICO_PNG_SIGNATURE, 8) == 0){
+	if((memcmp(pbIconBits, ICO_PNG_SIGNATURE, 8) == 0) && !IsNativePNGConversor){
+	//if((memcmp(pbIconBits, ICO_PNG_SIGNATURE, 8) == 0)){
 		hIcon = CreateIconFromPngBitsEx(pbIconBits, cbIconBits, cxDesired, cyDesired, fIcon);
 	}else{
 		hIcon = CreateIconFromResourceEx(pbIconBits, cbIconBits, fIcon, dwVersion, cxDesired, cyDesired, uFlags);
@@ -819,6 +828,10 @@ int WINAPI LookupIconIdFromDirectoryExHook(
     ULONG bestScore = 0xFFFFFFFF, score;
 
     TRACE("%p, %x, %i, %i, %x.\n", presbits, fIcon, cxDesired, cyDesired, Flags);
+	
+	if(IsNativePNGConversor){
+		return LookupIconIdFromDirectoryEx(presbits, fIcon, cxDesired, cyDesired, Flags);
+	}
 
     if(!(dir && !dir->idReserved && (dir->idType & 3)))
     {
@@ -963,6 +976,10 @@ HANDLE WINAPI LoadImageWHook( HINSTANCE hinst, LPCWSTR lpszName, UINT uType,
 {
 	HICON hIcon = 0;
 	int depth;
+	
+	if(IsNativePNGConversor){
+		return LoadImageW( hinst, lpszName, uType, cxDesired, cyDesired, fuLoad );
+	}
 
     switch (uType) {
     case IMAGE_BITMAP:
@@ -1010,6 +1027,10 @@ HANDLE WINAPI LoadImageAHook(
     HANDLE res;
     LPWSTR u_name;
     DWORD len;
+	
+	if(IsNativePNGConversor){
+		return LoadImageA( hinst, lpszName, uType, cxDesired, cyDesired, fuLoad );
+	}	
 
     if (IS_INTRESOURCE(lpszName))
         return LoadImageWHook(hinst, (LPCWSTR)lpszName, uType, cxDesired, cyDesired, fuLoad);
@@ -1028,6 +1049,10 @@ HICON WINAPI LoadIconAHook(
   _In_      LPCSTR lpIconName
 )
 {
+	if(IsNativePNGConversor){
+		return LoadIconA( hInstance, lpIconName);
+	}	
+	
     TRACE("%p, %s\n", hInstance, debugstr_a(lpIconName));
 
     return LoadImageAHook(hInstance,
@@ -1043,6 +1068,10 @@ HICON WINAPI LoadIconWHook(
   _In_      LPCWSTR lpIconName
 )
 {
+	if(IsNativePNGConversor){
+		return LoadIconW( hInstance, lpIconName);
+	}
+	
     TRACE("%p, %s\n", hInstance, debugstr_w(lpIconName));
 
     return LoadImageWHook(hInstance,

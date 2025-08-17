@@ -71,9 +71,9 @@
 #define ZBID_DEFAULT 0
 #define ZBID_DESKTOP 1
 
-typedef void *(WINAPI *RegisterCallback)(SIZE_T sizeOne, SIZE_T sizeTwo, int flags);
+typedef LPBITMAPINFOHEADER(*PCONVERT_TO_DIB_PROC)(LPBITMAPINFOHEADER lpPngData, DWORD dwSize);
 
-static RegisterCallback gpICSProc = NULL;
+static PCONVERT_TO_DIB_PROC gpICSProc = NULL;
 
 static BOOL gfdDPIProcess = FALSE;
 
@@ -108,6 +108,8 @@ PRTL_CRITICAL_SECTION gcsHdc;
 LPCRITICAL_SECTION lpCriticalSection;
 
 HANDLE pUserHeap;
+
+BOOL IsNativePNGConversor;
 
 typedef struct tagMAGCOLOREFFECT;
 
@@ -779,9 +781,6 @@ typedef struct
     DWORD dwImageOffset;
 } ICONDIRENTRY;
 
-void USER_Lock(void);
-void USER_Unlock(void);
-
 BOOL 
 WINAPI 
 IsProcessDPIAware();
@@ -792,7 +791,8 @@ SystemParametersInfoWInternal(
 	UINT uiAction,
 	UINT uiParam,
 	PVOID pvParam,
-	UINT fWinIni);
+	UINT fWinIni
+);
 	
 HICON WINAPI CreateIconFromResourceExHook(
   _In_  PBYTE pbIconBits,
@@ -803,6 +803,11 @@ HICON WINAPI CreateIconFromResourceExHook(
   _In_  int cyDesired,
   _In_  UINT uFlags
 );	
+
+PVOID 
+TryGetProcedure(
+	char* procedureName
+);
 
 // Definitions of prototype functions for get address
 	
@@ -856,3 +861,8 @@ typedef BOOL (WINAPI *ConsoleControlFuncPtr)(
 typedef BOOL (WINAPI *ControlMagnificationFuncPtr)(
     BOOL,
 	PVOID);	
+	
+typedef BOOL (WINAPI *PrivateRegisterICSProcFuncPtr)(
+    PCONVERT_TO_DIB_PROC);		
+	
+static PrivateRegisterICSProcFuncPtr PrivateRegisterICSProcAddr;
