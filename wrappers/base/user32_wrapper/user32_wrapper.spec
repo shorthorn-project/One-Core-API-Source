@@ -744,7 +744,7 @@
 #Hooks
 @ stdcall CreateIconFromResource (ptr long long long) CreateIconFromResourceHook
 @ stdcall CreateIconFromResourceEx(ptr long long long long long long) CreateIconFromResourceExHook
-@ stdcall LoadIconA(long str) #LoadIconAHook
+@ stdcall LoadIconA(long str) LoadIconAHook
 @ stdcall LoadIconW(long wstr) LoadIconWHook
 @ stdcall LoadImageA(long str long long long long) LoadImageAHook
 @ stdcall LoadImageW(long wstr long long long long) LoadImageWHook
