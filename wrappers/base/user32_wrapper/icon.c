@@ -104,412 +104,147 @@ struct png_wrapper
     size_t size, pos;
 };
 
-static void PNGAPI user_read_data(png_structp png_ptr, png_bytep outBytes, png_size_t byteCountToRead)
-{
-    struct mem_io_struct
-    {
-        BYTE *data;
-        DWORD size;
-        DWORD offset;
-    } *io;
+typedef struct {
+    png_bytep buffer;
+    png_size_t size;
+} PNG_READER;
 
-    io = (struct mem_io_struct *)png_get_io_ptr(png_ptr);
-    if (io->offset + byteCountToRead <= io->size)
-    {
-        memcpy(outBytes, io->data + io->offset, byteCountToRead);
-        io->offset += (DWORD)byteCountToRead;
+static void PNGAPI ReadPngData(png_structp png_ptr, png_bytep outBytes, png_size_t byteCountToRead)
+{
+    PNG_READER *reader = (PNG_READER *)png_get_io_ptr(png_ptr);
+    if (!reader || reader->size < byteCountToRead) {
+        png_error(png_ptr, "Read Error");
+        return;
     }
+
+    memcpy(outBytes, reader->buffer, byteCountToRead);
+    reader->buffer += byteCountToRead;
+    reader->size -= byteCountToRead;
 }
 
-HICON CreateIconFromPngBits(BYTE *data, DWORD size)
+LPBITMAPINFOHEADER WINAPI ConvertToDIBProc(LPBITMAPINFOHEADER lpPngData, DWORD dwSize)
 {
     png_structp png_ptr;
     png_infop info_ptr;
-    struct mem_io_struct
-    {
-        BYTE *data;
-        DWORD size;
-        DWORD offset;
-    } png_io;
-
-    int width, height;
+    PNG_READER reader;
     png_bytep *row_pointers;
-    int i;
-    BITMAPV5HEADER bi;
-    void *dibBits;
-    HDC hDC;
-    HBITMAP hBitmap;
-    HBITMAP hMask;
-    ICONINFO ii;
-    HICON hIcon;
+    png_bytep png_buffer;
+    png_size_t png_size;
 
-    png_ptr = NULL;
-    info_ptr = NULL;
-    row_pointers = NULL;
-    dibBits = NULL;
-    hBitmap = NULL;
-    hMask = NULL;
-    hIcon = NULL;
-	
+    INT width, height, i;
+    WORD bitCount;
+    DWORD imageSize, maskSize, headerSize, totalSize;
+    HGLOBAL hMem;
+    LPBYTE lpOutputBits, lpMaskBits;
+    LPBITMAPINFOHEADER lpOutputHeader;
+
     if (!LibPngExists())
-    {
-        ERR("No libpng.dll\n");
         return NULL;
-    }	
+
+    if (!lpPngData || dwSize < 8) return NULL;
+
+    png_buffer = (png_bytep)lpPngData;
+    png_size = (png_size_t)dwSize;
+
+    if (png_sig_cmp(png_buffer, 0, 8) != 0) return NULL;
 
     png_ptr = png_create_read_struct(PNG_LIBPNG_VER_STRING, NULL, NULL, NULL);
-    if (!png_ptr)
-    {
-        DbgPrint("[PNG] Falha ao criar png_struct.\n");
-        return NULL;
-    }
+    if (!png_ptr) return NULL;
 
     info_ptr = png_create_info_struct(png_ptr);
-    if (!info_ptr)
-    {
-        DbgPrint("[PNG] Falha ao criar info_struct.\n");
+    if (!info_ptr) {
         png_destroy_read_struct(&png_ptr, NULL, NULL);
         return NULL;
     }
 
-    png_io.data = data;
-    png_io.size = size;
-    png_io.offset = 0;
+    reader.buffer = png_buffer;
+    reader.size = png_size;
 
-    png_set_read_fn(png_ptr, &png_io, user_read_data);
+    png_set_read_fn(png_ptr, (png_voidp)&reader, ReadPngData);
     png_read_info(png_ptr, info_ptr);
 
-    width = (int)png_get_image_width(png_ptr, info_ptr);
-    height = (int)png_get_image_height(png_ptr, info_ptr);
+    width  = (INT)png_get_image_width(png_ptr, info_ptr);
+    height = (INT)png_get_image_height(png_ptr, info_ptr);
+    bitCount = 32;
 
-    png_set_expand(png_ptr);
+    if (png_get_bit_depth(png_ptr, info_ptr) == 16)
+        png_set_strip_16(png_ptr);
+
+    if (png_get_color_type(png_ptr, info_ptr) == PNG_COLOR_TYPE_PALETTE)
+        png_set_palette_to_rgb(png_ptr);
+
+    if (png_get_color_type(png_ptr, info_ptr) == PNG_COLOR_TYPE_GRAY &&
+        png_get_bit_depth(png_ptr, info_ptr) < 8)
+        png_set_expand_gray_1_2_4_to_8(png_ptr);
+
+    if (png_get_valid(png_ptr, info_ptr, PNG_INFO_tRNS))
+        png_set_tRNS_to_alpha(png_ptr);
+
+    if (png_get_color_type(png_ptr, info_ptr) == PNG_COLOR_TYPE_RGB ||
+        png_get_color_type(png_ptr, info_ptr) == PNG_COLOR_TYPE_GRAY)
+        png_set_add_alpha(png_ptr, 0xff, PNG_FILLER_AFTER);
+
     png_set_bgr(png_ptr);
-    png_set_add_alpha(png_ptr, 0xff, PNG_FILLER_AFTER);
     png_read_update_info(png_ptr, info_ptr);
 
     row_pointers = (png_bytep *)HeapAlloc(GetProcessHeap(), 0, sizeof(png_bytep) * height);
-    if (!row_pointers)
-    {
-        DbgPrint("[PNG] Falha ao alocar row_pointers.\n");
-        goto done;
+    if (!row_pointers) {
+        png_destroy_read_struct(&png_ptr, &info_ptr, NULL);
+        return NULL;
     }
 
-    for (i = 0; i < height; i++)
-    {
-        row_pointers[i] = (png_bytep)HeapAlloc(GetProcessHeap(), 0, width * 4);
-        if (!row_pointers[i])
-        {
-            DbgPrint("[PNG] Falha ao alocar linha do PNG.\n");
-            goto done;
-        }
+    imageSize  = width * height * 4;
+    headerSize = sizeof(BITMAPINFOHEADER);
+
+    /* máscara AND: 1 bit por pixel, alinhado em múltiplos de 4 bytes por linha */
+    maskSize = ((width + 31) / 32) * 4 * height;
+
+    totalSize = headerSize + imageSize + maskSize;
+
+    hMem = GlobalAlloc(GMEM_MOVEABLE, totalSize);
+    if (!hMem) {
+        HeapFree(GetProcessHeap(), 0, row_pointers);
+        png_destroy_read_struct(&png_ptr, &info_ptr, NULL);
+        return NULL;
+    }
+
+    lpOutputHeader = (LPBITMAPINFOHEADER)GlobalLock(hMem);
+    if (!lpOutputHeader) {
+        HeapFree(GetProcessHeap(), 0, row_pointers);
+        GlobalFree(hMem);
+        png_destroy_read_struct(&png_ptr, &info_ptr, NULL);
+        return NULL;
+    }
+
+    lpOutputBits = (LPBYTE)(lpOutputHeader + 1);
+
+    for (i = 0; i < height; i++) {
+        row_pointers[height - 1 - i] = lpOutputBits + (i * width * 4);
     }
 
     png_read_image(png_ptr, row_pointers);
 
-    ZeroMemory(&bi, sizeof(bi));
-    bi.bV5Size = sizeof(bi);
-    bi.bV5Width = width;
-    bi.bV5Height = -height;
-    bi.bV5Planes = 1;
-    bi.bV5BitCount = 32;
-    bi.bV5Compression = BI_BITFIELDS;
-    bi.bV5RedMask   = 0x00FF0000;
-    bi.bV5GreenMask = 0x0000FF00;
-    bi.bV5BlueMask  = 0x000000FF;
-    bi.bV5AlphaMask = 0xFF000000;
+    /* Preenche cabeçalho */
+    lpOutputHeader->biSize          = sizeof(BITMAPINFOHEADER);
+    lpOutputHeader->biWidth         = width;
+    lpOutputHeader->biHeight        = height * 2; /* cores + máscara */
+    lpOutputHeader->biPlanes        = 1;
+    lpOutputHeader->biBitCount      = bitCount;
+    lpOutputHeader->biCompression   = BI_RGB;
+    lpOutputHeader->biSizeImage     = imageSize;
+    lpOutputHeader->biXPelsPerMeter = 0;
+    lpOutputHeader->biYPelsPerMeter = 0;
+    lpOutputHeader->biClrUsed       = 0;
+    lpOutputHeader->biClrImportant  = 0;
 
-    hDC = GetDC(NULL);
-    hBitmap = CreateDIBSection(hDC, (BITMAPINFO *)&bi, DIB_RGB_COLORS, &dibBits, NULL, 0);
-    ReleaseDC(NULL, hDC);
-
-    if (!hBitmap || !dibBits)
-    {
-        DbgPrint("[PNG] Falha ao criar DIBSection.\n");
-        goto done;
-    }
-
-    for (i = 0; i < height; i++)
-    {
-        memcpy((BYTE *)dibBits + i * width * 4, row_pointers[i], width * 4);
-    }
-
-    hMask = CreateBitmap(width, height, 1, 1, NULL);
-    if (!hMask)
-    {
-        DbgPrint("[PNG] Falha ao criar máscara.\n");
-        goto done;
-    }
-
-    ii.fIcon = TRUE;
-    ii.xHotspot = 0;
-    ii.yHotspot = 0;
-    ii.hbmMask = hMask;
-    ii.hbmColor = hBitmap;
-
-    hIcon = CreateIconIndirect(&ii);
-    if (!hIcon)
-    {
-        DbgPrint("[PNG] CreateIconIndirect falhou.\n");
-    }
-
-done:
-    if (row_pointers)
-    {
-        for (i = 0; i < height; i++)
-        {
-            if (row_pointers[i])
-                HeapFree(GetProcessHeap(), 0, row_pointers[i]);
-        }
-        HeapFree(GetProcessHeap(), 0, row_pointers);
-    }
+	/* Preenche a máscara toda com 0 (nenhum recorte) */
+	lpMaskBits = lpOutputBits + imageSize;
+	memset(lpMaskBits, 0x00, maskSize);
 
     png_destroy_read_struct(&png_ptr, &info_ptr, NULL);
+    HeapFree(GetProcessHeap(), 0, row_pointers);
 
-    if (hBitmap)
-        DeleteObject(hBitmap);
-    if (hMask)
-        DeleteObject(hMask);
-
-    return hIcon;
-}
-
-/* Função para redimensionar uma DIB Section */
-static HBITMAP ResizeBitmap(HDC hdc, HBITMAP hBitmap, int newWidth, int newHeight)
-{
-    BITMAP bm;
-    HDC hdcSrc, hdcDst;
-    HBITMAP hbmResized;
-    BITMAPV4HEADER bi;
-
-    /* Obtém informações do bitmap original */
-    if (!GetObjectW(hBitmap, sizeof(bm), &bm))
-        return NULL;
-
-    /* Configura BITMAPV4HEADER para RGBA top-down */
-    ZeroMemory(&bi, sizeof(bi));
-    bi.bV4Size          = sizeof(bi);
-    bi.bV4Width         = newWidth;
-    bi.bV4Height        = -newHeight; /* negativo = top-down */
-    bi.bV4Planes        = 1;
-    bi.bV4BitCount      = 32;
-    bi.bV4V4Compression = BI_BITFIELDS;
-    bi.bV4RedMask       = 0x00FF0000;
-    bi.bV4GreenMask     = 0x0000FF00;
-    bi.bV4BlueMask      = 0x000000FF;
-    bi.bV4AlphaMask     = 0xFF000000;
-
-    /* Cria DCs compatíveis */
-    hdcSrc = CreateCompatibleDC(hdc);
-    hdcDst = CreateCompatibleDC(hdc);
-
-    /* Cria bitmap RGBA */
-    hbmResized = CreateDIBSection(hdcDst, (BITMAPINFO*)&bi, DIB_RGB_COLORS, NULL, NULL, 0);
-
-    if (!hbmResized)
-    {
-        DeleteDC(hdcSrc);
-        DeleteDC(hdcDst);
-        return NULL;
-    }
-
-    /* Seleciona bitmaps nos DCs */
-    SelectObject(hdcSrc, hBitmap);
-    SelectObject(hdcDst, hbmResized);
-
-    /* Melhor qualidade de redimensionamento */
-    //SetStretchBltMode(hdcDst, HALFTONE);
-    SetBrushOrgEx(hdcDst, 0, 0, NULL);
-
-    /* Redimensiona preservando alpha */
-    StretchBlt(hdcDst, 0, 0, newWidth, newHeight,
-               hdcSrc, 0, 0, bm.bmWidth, bm.bmHeight,
-               SRCCOPY);
-
-    /* Libera DCs temporários */
-    DeleteDC(hdcSrc);
-    DeleteDC(hdcDst);
-
-    return hbmResized;
-}
-
-static void FixBGRAtoRGBA(BYTE *pixels, int width, int height)
-{
-    int x, y;
-    DWORD *p = (DWORD*)pixels;
-    for (y = 0; y < height; y++) {
-        for (x = 0; x < width; x++) {
-            DWORD px = p[y * width + x];
-            p[y * width + x] = (px & 0xFF00FF00) | ((px & 0x000000FF) << 16) | ((px & 0x00FF0000) >> 16);
-        }
-    }
-}
-
-HICON CreateIconFromPngBitsEx(BYTE *data, DWORD size, int cxDesired, int cyDesired, BOOL fIcon)
-{
-    png_structp png_ptr;
-    png_infop info_ptr;
-    struct mem_io_struct
-    {
-        BYTE *data;
-        DWORD size;
-        DWORD offset;
-    } png_io;
-
-    int width, height;
-    png_bytep *row_pointers;
-    int i;
-    BITMAPV5HEADER bi;
-    void *dibBits;
-    HDC hDC;
-    HBITMAP hBitmap;
-    HBITMAP hMask;
-    ICONINFO ii;
-    HICON hIcon;
-	HBITMAP hResized;
-
-    png_ptr = NULL;
-    info_ptr = NULL;
-    row_pointers = NULL;
-    dibBits = NULL;
-    hBitmap = NULL;
-    hMask = NULL;
-    hIcon = NULL;
-	
-    if (!LibPngExists())
-    {
-        ERR("No libpng.dll\n");
-        return NULL;
-    }	
-
-    png_ptr = png_create_read_struct(PNG_LIBPNG_VER_STRING, NULL, NULL, NULL);
-    if (!png_ptr)
-    {
-        DbgPrint("[PNG] Falha ao criar png_struct.\n");
-        return NULL;
-    }
-
-    info_ptr = png_create_info_struct(png_ptr);
-    if (!info_ptr)
-    {
-        DbgPrint("[PNG] Falha ao criar info_struct.\n");
-        png_destroy_read_struct(&png_ptr, NULL, NULL);
-        return NULL;
-    }
-
-    png_io.data = data;
-    png_io.size = size;
-    png_io.offset = 0;
-	
-    /* Use tamanhos padrão se cx/cy forem 0 */
-    if (cxDesired == 0)
-        cxDesired = GetSystemMetrics(fIcon ? SM_CXICON : SM_CXCURSOR);
-    if (cyDesired == 0)
-        cyDesired = GetSystemMetrics(fIcon ? SM_CYICON : SM_CYCURSOR);	
-
-    png_set_read_fn(png_ptr, &png_io, user_read_data);
-    png_read_info(png_ptr, info_ptr);
-
-    width = (int)png_get_image_width(png_ptr, info_ptr);
-    height = (int)png_get_image_height(png_ptr, info_ptr);
-	
-    png_set_expand(png_ptr);
-    png_set_bgr(png_ptr);
-    png_set_add_alpha(png_ptr, 0xff, PNG_FILLER_AFTER);
-    png_read_update_info(png_ptr, info_ptr);
-
-    row_pointers = (png_bytep *)HeapAlloc(GetProcessHeap(), 0, sizeof(png_bytep) * height);
-    if (!row_pointers)
-    {
-        DbgPrint("[PNG] Falha ao alocar row_pointers.\n");
-        goto done;
-    }
-
-    for (i = 0; i < height; i++)
-    {
-        row_pointers[i] = (png_bytep)HeapAlloc(GetProcessHeap(), 0, width * 4);
-        if (!row_pointers[i])
-        {
-            DbgPrint("[PNG] Falha ao alocar linha do PNG.\n");
-            goto done;
-        }
-    }
-
-    png_read_image(png_ptr, row_pointers);
-
-    ZeroMemory(&bi, sizeof(bi));
-    bi.bV5Size = sizeof(bi);
-    bi.bV5Width = width;
-    bi.bV5Height = -height;
-    bi.bV5Planes = 1;
-    bi.bV5BitCount = 32;
-    bi.bV5Compression = BI_BITFIELDS;
-    bi.bV5RedMask   = 0x00FF0000;
-    bi.bV5GreenMask = 0x0000FF00;
-    bi.bV5BlueMask  = 0x000000FF;
-    bi.bV5AlphaMask = 0xFF000000;
-
-    hDC = GetDC(NULL);
-    hBitmap = CreateDIBSection(hDC, (BITMAPINFO *)&bi, DIB_RGB_COLORS, &dibBits, NULL, 0);
-    ReleaseDC(NULL, hDC);
-
-    if (!hBitmap || !dibBits)
-    {
-        DbgPrint("[PNG] Falha ao criar DIBSection.\n");
-        goto done;
-    }
-
-    for (i = 0; i < height; i++)
-    {
-        memcpy((BYTE *)dibBits + i * width * 4, row_pointers[i], width * 4);
-    }
-	
-    /* Redimensionar */
-    if (cxDesired == 16 || cyDesired == 16) {
-        hResized = ResizeBitmap(GetDC(NULL), hBitmap, cxDesired, cyDesired);
-        DeleteObject(hBitmap);
-        hBitmap = hResized;
-		hMask = CreateBitmap(cxDesired, cyDesired, 1, 1, NULL);
-    }else{
-		hMask = CreateBitmap(width, height, 1, 1, NULL);
-	}
-    
-    if (!hMask)
-    {
-        DbgPrint("[PNG] Falha ao criar máscara.\n");
-        goto done;
-    }
-
-    ii.fIcon = TRUE;
-    ii.xHotspot = 0;
-    ii.yHotspot = 0;
-    ii.hbmMask = hMask;
-    ii.hbmColor = hBitmap;
-
-    hIcon = CreateIconIndirect(&ii);
-    if (!hIcon)
-    {
-        DbgPrint("[PNG] CreateIconIndirect falhou.\n");
-    }
-
-done:
-    if (row_pointers)
-    {
-        for (i = 0; i < height; i++)
-        {
-            if (row_pointers[i])
-                HeapFree(GetProcessHeap(), 0, row_pointers[i]);
-        }
-        HeapFree(GetProcessHeap(), 0, row_pointers);
-    }
-
-    png_destroy_read_struct(&png_ptr, &info_ptr, NULL);
-
-    if (hBitmap)
-        DeleteObject(hBitmap);
-    if (hMask)
-        DeleteObject(hMask);
-
-    return hIcon;
+    return lpOutputHeader;
 }
 
 HANDLE LoadImagePngFromFile(
@@ -678,7 +413,17 @@ HICON LoadImagePngFromResource(HINSTANCE hInstance, LPCWSTR name,
         size -= 2 * sizeof(SHORT);
     }
 	
-	hIcon = CreateIconFromPngBits(bits, size);
+	DbgPrint("LoadImagePngFromResource:: trying CreateIconFromPngBits\n");
+
+	hIcon = CreateIconFromResourceExHook(
+				bits,
+				size,
+				!fCursor,
+				0x00030000,
+				width,
+				height,
+				loadflags);
+
     FreeResource( handle );
     return hIcon;
 }
@@ -778,10 +523,11 @@ HICON WINAPI CreateIconFromResourceHook(
 )
 {
 	HICON hIcon = NULL;
+	LPBITMAPINFOHEADER PngBitmapHeader;
 
 	if((memcmp(presbits, ICO_PNG_SIGNATURE, 8) == 0) && !IsNativePNGConversor){
-	//if((memcmp(presbits, ICO_PNG_SIGNATURE, 8) == 0)){
-		hIcon = CreateIconFromPngBits(presbits, dwResSize);
+		PngBitmapHeader = ConvertToDIBProc((LPBITMAPINFOHEADER)presbits, dwResSize);
+		hIcon = CreateIconFromResource((PBYTE)PngBitmapHeader, dwResSize, fIcon, dwVer);	
 	}else{
 		hIcon = CreateIconFromResource(presbits, dwResSize, fIcon, dwVer);	
 	}
@@ -800,10 +546,11 @@ HICON WINAPI CreateIconFromResourceExHook(
 )
 {
 	HICON hIcon = NULL;
+	LPBITMAPINFOHEADER PngBitmapHeader;	
 	
 	if((memcmp(pbIconBits, ICO_PNG_SIGNATURE, 8) == 0) && !IsNativePNGConversor){
-	//if((memcmp(pbIconBits, ICO_PNG_SIGNATURE, 8) == 0)){
-		hIcon = CreateIconFromPngBitsEx(pbIconBits, cbIconBits, cxDesired, cyDesired, fIcon);
+		PngBitmapHeader = ConvertToDIBProc((LPBITMAPINFOHEADER)pbIconBits, cbIconBits);
+		hIcon = CreateIconFromResourceEx((PBYTE)PngBitmapHeader, cbIconBits, fIcon, dwVersion, cxDesired, cyDesired, uFlags);		
 	}else{
 		hIcon = CreateIconFromResourceEx(pbIconBits, cbIconBits, fIcon, dwVersion, cxDesired, cyDesired, uFlags);
 	}
@@ -990,12 +737,14 @@ HANDLE WINAPI LoadImageWHook( HINSTANCE hinst, LPCWSTR lpszName, UINT uType,
 		hIcon = LoadImageW( hinst, lpszName, uType, cxDesired, cyDesired, fuLoad );
 		
 		if(!hIcon){
-			DbgPrint("LoadImageWHook::fuLoad is %d\n", fuLoad);
+			DbgPrint("LoadImageWHook::LoadImageW failed. fuLoad is %d\n", fuLoad);
 			if (fuLoad & LR_LOADFROMFILE){
+				DbgPrint("\n");
 				hIcon = LoadImagePngFromFile(hinst, lpszName, uType, cxDesired, cyDesired, fuLoad);
 			}
 			else{	
 				depth = 1;
+				DbgPrint("LoadImageWHook::is not LR_LOADFROMFILE\n");
 				if (!(fuLoad & LR_MONOCHROME)) depth = get_display_bpp();	
 
 		

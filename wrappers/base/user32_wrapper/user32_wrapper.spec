@@ -87,6 +87,7 @@
 @ stdcall CreateDialogParamA(long ptr long ptr long)
 @ stdcall CreateDialogParamW(long ptr long ptr long)
 @ stdcall CreateIcon(long long long long long ptr ptr)
+@ stdcall CreateIconIndirect(ptr)
 @ stdcall CreateMDIWindowA(ptr ptr long long long long long long long long)
 @ stdcall CreateMDIWindowW(ptr ptr long long long long long long long long)
 @ stdcall CreateMenu()
@@ -438,6 +439,10 @@
 @ stdcall LoadAcceleratorsW(long wstr)
 @ stdcall LoadBitmapA(long str)
 @ stdcall LoadBitmapW(long wstr)
+@ stdcall LoadCursorA(long str)
+@ stdcall LoadCursorFromFileA(str)
+@ stdcall LoadCursorFromFileW(wstr)
+@ stdcall LoadCursorW(long wstr)
 @ stdcall LoadKeyboardLayoutA(str long)
 @ stdcall LoadKeyboardLayoutEx(long ptr long)
 @ stdcall LoadKeyboardLayoutW(wstr long)
@@ -739,12 +744,7 @@
 #Hooks
 @ stdcall CreateIconFromResource (ptr long long long) CreateIconFromResourceHook
 @ stdcall CreateIconFromResourceEx(ptr long long long long long long) CreateIconFromResourceExHook
-@ stdcall CreateIconIndirect(ptr) #CreateIconIndirectHook
-@ stdcall LoadCursorA(long str) #LoadCursorAHook
-@ stdcall LoadCursorFromFileA(str) #LoadCursorFromFileAHook
-@ stdcall LoadCursorFromFileW(wstr) #LoadCursorFromFileWHook
-@ stdcall LoadCursorW(long wstr) #LoadCursorWHook
-@ stdcall LoadIconA(long str) LoadIconAHook
+@ stdcall LoadIconA(long str) #LoadIconAHook
 @ stdcall LoadIconW(long wstr) LoadIconWHook
 @ stdcall LoadImageA(long str long long long long) LoadImageAHook
 @ stdcall LoadImageW(long wstr long long long long) LoadImageWHook
