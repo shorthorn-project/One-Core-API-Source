@@ -1024,6 +1024,7 @@
 #Vista Functions 
 @ stdcall AcquireSRWLockExclusive(ptr) ntext.RtlAcquireSRWLockExclusive
 @ stdcall AcquireSRWLockShared(ptr) ntext.RtlAcquireSRWLockShared
+@ stdcall AddDllDirectory(wstr) ;Error in Avast ;Vista with updates
 @ stdcall AdjustCalendarDate(ptr long long)
 @ stdcall AllocateUserPhysicalPagesNuma(ptr ptr ptr long) 
 @ stdcall ApplicationRecoveryFinished(long)
@@ -1223,11 +1224,13 @@
 @ stdcall ReleaseSRWLockShared(ptr) ntext.RtlReleaseSRWLockShared
 @ stdcall RemoveDirectoryTransactedA(str ptr)
 @ stdcall RemoveDirectoryTransactedW(wstr ptr)
+@ stdcall RemoveDllDirectory(ptr) ;Vista with Updates
 @ stdcall ResolveDelayLoadedAPI(ptr ptr ptr ptr ptr long) ntext.LdrResolveDelayLoadedAPI
 @ stdcall SetConsoleHistoryInfo(ptr)
 @ stdcall SetConsoleScreenBufferInfoEx(ptr ptr)
 @ stdcall SetCurrentConsoleFontEx(ptr long ptr)
 @ stdcall SetCurrentTransaction(ptr)
+@ stdcall SetDefaultDllDirectories(long) ;Vista with Updates
 @ stdcall SetDynamicTimeZoneInformation(ptr)
 @ stdcall SetEventWhenCallbackReturns(ptr long) ntext.TpCallbackSetEventOnCompletion
 @ stdcall SetFileAttributesTransactedA(str long ptr)
@@ -1357,6 +1360,7 @@
 @ stdcall QueryUnbiasedInterruptTime(ptr)
 @ stdcall RaiseFailFastException(ptr ptr long)
 @ stdcall ResolveLocaleName(wstr ptr long)
+@ stdcall SetProcessGroupAffinity(long ptr ptr)
 @ stdcall SetThreadErrorMode(long ptr)
 @ stdcall SetThreadGroupAffinity(long ptr ptr)
 @ stdcall SetThreadIdealProcessorEx(ptr ptr ptr)
@@ -1374,7 +1378,6 @@
 @ stdcall -arch=x86_64 UmsThreadYield(ptr)
 
 #Win8 Functions 
-@ stdcall AddDllDirectory(wstr) ;Error in Avast
 @ stdcall ApiSetQueryApiSetPresence(ptr ptr) 
 @ stdcall AppPolicyGetProcessTerminationMethod(ptr ptr) 
 @ stdcall AppPolicyGetShowDeveloperDiagnostic(ptr ptr)
@@ -1388,6 +1391,7 @@
 @ stdcall DeleteSynchronizationBarrier(ptr)
 @ stdcall EnterSynchronizationBarrier(ptr long)
 @ stdcall EnumDynamicTimeZoneInformation(long ptr)
+@ stdcall EventSetInformation(int64 long ptr long) ntext.EtwEventSetInformation
 @ stdcall GetApplicationUserModelId(long ptr wstr)
 @ stdcall GetCurrentApplicationUserModelId(ptr wstr)
 @ stdcall GetCurrentPackageId(ptr ptr)
@@ -1440,8 +1444,6 @@
 @ stdcall PathCchStripToRoot(wstr long)
 @ stdcall PathIsUNCEx(wstr ptr)
 @ stdcall PrefetchVirtualMemory(ptr ptr ptr long)
-@ stdcall RemoveDllDirectory(ptr)
-@ stdcall SetDefaultDllDirectories(long)
 @ stdcall SetProcessMitigationPolicy(long ptr long)
 @ stdcall SetThreadpoolTimerEx(ptr ptr long long ptr)
 @ stdcall SetThreadpoolWaitEx(ptr ptr ptr ptr)
@@ -1450,7 +1452,6 @@
 @ stdcall WakeByAddressSingle(ptr) ntext.RtlWakeAddressSingle
 @ stdcall WerpNotifyLoadStringResourceWorker(ptr wstr ptr long) WerpNotifyLoadStringResource
 @ stdcall WerpNotifyUseStringResourceWorker(ptr) WerpNotifyUseStringResource
-@ stdcall EventSetInformation(int64 long ptr long) ntext.EtwEventSetInformation
 @ stdcall PerfCreateInstance(long ptr wstr long) 
 @ stdcall PerfDeleteInstance(long ptr)
 @ stdcall PerfSetCounterRefValue(long ptr long ptr)
@@ -1459,7 +1460,6 @@
 @ stdcall PerfStartProviderEx(ptr ptr ptr)
 @ stdcall PerfStopProvider(long)
 @ stdcall SetProcessInformation(long long ptr long)
-@ stdcall SetProcessGroupAffinity(long ptr ptr)
 @ stdcall SetThreadInformation(long long ptr long)
 @ stdcall UnmapViewOfFileEx(ptr long)
 

@@ -27,6 +27,7 @@ void load_global_options(void);
 void init_locale();
 void NTAPI RtlpInitSRWLock();
 VOID InitializeGlobalKeyedEventHandle();
+VOID NTAPI RtlpInitializeThreadPooling(VOID);
 BOOL IsUniprocessorMachine = FALSE;
 
 /*****************************************************
@@ -54,6 +55,7 @@ LdrInitialize(
 		RtlpInitSRWLock(NtCurrentTeb()->ProcessEnvironmentBlock);
 		RtlpInitConditionVariable(NtCurrentTeb()->ProcessEnvironmentBlock);
 		InitializeGlobalKeyedEventHandle();
+		RtlpInitializeThreadPooling();
 		if (NtCurrentTeb()->ProcessEnvironmentBlock->NumberOfProcessors == 1)
 		{
 			IsUniprocessorMachine = TRUE;

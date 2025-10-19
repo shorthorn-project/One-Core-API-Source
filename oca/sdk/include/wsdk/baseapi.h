@@ -377,7 +377,7 @@ VOID NTAPI TpCallbackReleaseMutexOnCompletion(
 VOID NTAPI TpCallbackReleaseSemaphoreOnCompletion( 	
 		__inout PTP_CALLBACK_INSTANCE  	Instance,
 		__in HANDLE  	Semaphore,
-		__in LONG  	ReleaseCount 
+		__in DWORD  	ReleaseCount 
 ) ;
 
 NTSTATUS WINAPI RtlAddSIDToBoundaryDescriptor(

@@ -255,7 +255,11 @@ CheckIfIsOSExec(){
     }
 
     // Compare executable name with "explorer.exe"
-    if ((wcsicmp(PathFindFileNameW(exePath), L"EXPLORER.EXE") == 0) || wcsicmp(PathFindFileNameW(exePath), L"MSIEXEC.EXE") == 0  || wcsicmp(PathFindFileNameW(exePath), L"Rundll32.EXE") == 0 || wcsicmp(PathFindFileNameW(exePath), L"SYSOCMGR.EXE") == 0) {
+    if ((wcsicmp(PathFindFileNameW(exePath), L"EXPLORER.EXE") == 0) || 
+		 wcsicmp(PathFindFileNameW(exePath), L"MSIEXEC.EXE") == 0  || 
+		 wcsicmp(PathFindFileNameW(exePath), L"Rundll32.EXE") == 0 || 
+		 wcsicmp(PathFindFileNameW(exePath), L"SYSOCMGR.EXE") == 0 || 
+		 wcsicmp(PathFindFileNameW(exePath), L"UDPATE.EXE") == 0) {
         return TRUE;
     } else {
 		return FALSE;

@@ -1748,7 +1748,6 @@
 @ stdcall LdrRemoveLoadAsDataTable() ntdll.LdrRemoveLoadAsDataTable
 @ stdcall LdrResFindResource() ntdll.LdrResFindResource
 @ stdcall LdrResFindResourceDirectory() ntdll.LdrResFindResourceDirectory
-@ stdcall LdrResSearchResource() ntdll.LdrResSearchResource
 @ stdcall LdrpResGetMappingSize() ntdll.LdrpResGetMappingSize
 @ stdcall LdrpResGetRCConfig() ntdll.LdrpResGetRCConfig
 @ stdcall LdrpResGetResourceDirectory() ntdll.LdrpResGetResourceDirectory
