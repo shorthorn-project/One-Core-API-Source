@@ -193,6 +193,34 @@ SOCKET WSAAPI WSASocketWInternal(int af, int type, int protocol,
     return WSASocketW(af, type, protocol, lpProtocolInfo, g, dwFlags);
 }
 
+/*
+ * Fixups for modern async-I/O clients (Node.js/libuv, undici). The 2003/XP winsock
+ * stack lacks the per-socket TCP_KEEPALIVE option and advertises IFS handles, which
+ * drives libuv down the Vista-only SetFileCompletionNotificationModes path
+ * (unsupported here) and breaks both connect and streaming. setsockoptInternal
+ * translates TCP_KEEPALIVE to the supported SIO_KEEPALIVE_VALS ioctl;
+ * getsockoptInternal reports the base provider as non-IFS.
+ */
+#ifndef SO_PROTOCOL_INFOW
+#define SO_PROTOCOL_INFOW   0x2005
+#endif
+#ifndef XP1_IFS_HANDLES
+#define XP1_IFS_HANDLES     0x00020000
+#endif
+#ifndef SIO_KEEPALIVE_VALS
+#define SIO_KEEPALIVE_VALS  0x98000004
+#endif
+#ifndef IPPROTO_TCP
+#define IPPROTO_TCP         6
+#endif
+
+/* Layout of struct tcp_keepalive (mstcpip.h); named locally to avoid header clashes. */
+typedef struct _OCA_TCP_KEEPALIVE {
+    ULONG onoff;
+    ULONG keepalivetime;      /* milliseconds */
+    ULONG keepaliveinterval;  /* milliseconds */
+} OCA_TCP_KEEPALIVE;
+
 INT
 WSAAPI
 setsockoptInternal(
@@ -205,7 +233,26 @@ setsockoptInternal(
 	if(level == IPPROTO_IPV6 && optname == IPV6_V6ONLY){
 		return S_OK;
 	}
-	
+
+	/*
+	 * TCP_KEEPALIVE is a Vista+ option; the 2003/XP afd rejects it with
+	 * WSAENOPROTOOPT, which kills libuv/undici sockets on setKeepAlive. Map it
+	 * to SIO_KEEPALIVE_VALS, which the stack does support. optval carries the
+	 * idle time in SECONDS (Node passes ~~(delay/1000)); the ioctl wants ms.
+	 */
+	if (level == IPPROTO_TCP && optname == TCP_KEEPALIVE) {
+		OCA_TCP_KEEPALIVE ka;
+		DWORD bytesReturned = 0;
+		ka.onoff = 1;
+		ka.keepalivetime = (optval != NULL && optlen >= (INT)sizeof(ULONG))
+		                       ? (*(const ULONG*)optval) * 1000 : 7200000;
+		ka.keepaliveinterval = 1000;
+		if (WSAIoctl(s, SIO_KEEPALIVE_VALS, &ka, sizeof(ka),
+		             NULL, 0, &bytesReturned, NULL, NULL) == 0)
+			return 0;
+		return SOCKET_ERROR; /* WSAIoctl already set the last error */
+	}
+
 	return setsockopt(s, level, optname, optval, optlen);
 }
 
@@ -214,6 +261,22 @@ INT WINAPI getsockoptInternal(SOCKET s, int level, int optname, char *optval, in
     if (level == IPPROTO_IPV6 && optname == IPV6_V6ONLY) {
         *(PDWORD)optval = TRUE; // no dual-stack support :(
         return 0;
+    }
+    /*
+     * Report the base provider as non-IFS by clearing XP1_IFS_HANDLES from the
+     * returned protocol info. libuv/undici test this bit to decide whether to call
+     * SetFileCompletionNotificationModes (Vista+, unsupported on the 2003 kernel);
+     * with it clear they skip that path and use plain IOCP, so connect and streaming
+     * work. dwServiceFlags1 is the first field of WSAPROTOCOL_INFO[A/W].
+     */
+    if (level == SOL_SOCKET &&
+        (optname == SO_PROTOCOL_INFOA || optname == SO_PROTOCOL_INFOW)) {
+        INT ret = getsockopt(s, level, optname, optval, optlen);
+        if (ret == 0 && optval != NULL && optlen != NULL &&
+            *optlen >= (INT)sizeof(DWORD)) {
+            *(PDWORD)optval &= ~XP1_IFS_HANDLES;
+        }
+        return ret;
     }
     return getsockopt(s, level, optname, optval, optlen);
 }
