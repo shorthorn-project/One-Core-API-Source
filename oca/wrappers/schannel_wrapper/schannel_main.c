@@ -66,20 +66,20 @@ BOOL WINAPI DllMain(HINSTANCE hinstDLL, DWORD fdwReason, LPVOID lpvReserved)
 
 // #ifdef __REACTOS__
 
-// PSecurityFunctionTableW
-// WINAPI
-// schan_InitSecurityInterfaceW(VOID)
-// {
-    // TRACE("InitSecurityInterfaceW() called\n");
-    // return &schanTableW;
-// }
+PSecurityFunctionTableW
+WINAPI
+schan_InitSecurityInterfaceW(VOID)
+{
+    TRACE("InitSecurityInterfaceW() called\n");
+    return &schanTableW;
+}
 
-// PSecurityFunctionTableA
-// WINAPI
-// schan_InitSecurityInterfaceA(VOID)
-// {
-    // TRACE("InitSecurityInterfaceA() called\n");
-    // return &schanTableA;
-// }
+PSecurityFunctionTableA
+WINAPI
+schan_InitSecurityInterfaceA(VOID)
+{
+    TRACE("InitSecurityInterfaceA() called\n");
+    return &schanTableA;
+}
 
 // #endif /* __REACTOS__ */

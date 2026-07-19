@@ -11,8 +11,8 @@
 @ stdcall FreeContextBuffer(ptr) secur32.FreeContextBuffer ;schan_FreeContextBuffer
 @ stdcall FreeCredentialsHandle(ptr) secur32.FreeCredentialsHandle ;schan_FreeCredentialsHandle
 @ stdcall ImpersonateSecurityContext(ptr) secur32.ImpersonateSecurityContext;schan_ImpersonateSecurityContext
-@ stdcall InitSecurityInterfaceA() secur32.InitSecurityInterfaceA ;schan_InitSecurityInterfaceA
-@ stdcall InitSecurityInterfaceW() secur32.InitSecurityInterfaceW ;schan_InitSecurityInterfaceW
+@ stdcall InitSecurityInterfaceA() schan_InitSecurityInterfaceA
+@ stdcall InitSecurityInterfaceW() schan_InitSecurityInterfaceW
 @ stdcall InitializeSecurityContextA(ptr ptr str long long long ptr long ptr ptr ptr ptr) secur32.InitializeSecurityContextA ;schan_InitializeSecurityContextA
 @ stdcall InitializeSecurityContextW(ptr ptr wstr long long long ptr long ptr ptr ptr ptr) secur32.InitializeSecurityContextW ;schan_InitializeSecurityContextW
 @ stdcall MakeSignature(ptr long ptr long) secur32.MakeSignature
