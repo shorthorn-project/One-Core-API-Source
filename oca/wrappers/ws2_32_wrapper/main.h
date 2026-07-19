@@ -11,7 +11,6 @@
 #include <wine/debug.h>
 #include <wine/list.h>
 #include <wine/unicode.h>
-#include <winsock.h>
 #include <winsock2.h>
 /* PSDK and NDK Headers */
 #include <winreg.h>
@@ -87,33 +86,39 @@
 
 #define SO_PROTOCOL_INFOA          0x2004
 
+#define IOC_UNIX                       0x00000000
+#define IOC_WS2                        0x08000000
+#define IOC_PROTOCOL                   0x10000000
+#define IOC_VENDOR                     0x18000000
+
+#define _WSAIO(x,y)                    (IOC_VOID|(x)|(y))
+#define _WSAIOR(x,y)                   (IOC_OUT|(x)|(y))
+#define _WSAIOW(x,y)                   (IOC_IN|(x)|(y))
+#define _WSAIORW(x,y)                  (IOC_INOUT|(x)|(y))
+
 #define SIO_BASE_HANDLE 0x48000022
 #define SIO_BSP_HANDLE 0x4800001B
 #define SIO_BSP_HANDLE_SELECT 0x4800001C
 #define SIO_BSP_HANDLE_POLL 0x4800001D
 #define SIO_LOOPBACK_FAST_PATH 0x98000010
+#define SIO_UDP_NETRESET  _WSAIOW(IOC_VENDOR,15)
+#define WSA_WAIT_FAILED ((DWORD)-1L)
+#define SIO_UDP_CONNRESET _WSAIOW(IOC_VENDOR,12)
+#define WSA_INVALID_EVENT ((WSAEVENT)NULL)
 
 static const unsigned __int64 epoch = ((unsigned __int64) 116444736000000000ULL);
-
-struct pollfd
-{
-     int fd;
-     short events;
-     short revents;
-};
-
-typedef struct /*WS(pollfd)*/
-{
-    SOCKET fd;
-    SHORT events;
-    SHORT revents;
-} WSAPOLLFD;
 
 typedef enum _WSC_PROVIDER_INFO_TYPE
 {
     ProviderInfoLspCategories,
     ProviderInfoAudit,
 } WSC_PROVIDER_INFO_TYPE;
+
+typedef struct pollfd {
+  SOCKET fd;
+  SHORT events;
+  SHORT revents;
+} WSAPOLLFD, *PWSAPOLLFD, FAR *LPWSAPOLLFD;
 
 int poll( struct pollfd *fds, unsigned int count, int timeout );
 
@@ -131,13 +136,13 @@ typedef struct addrinfoexW {
   struct addrinfoexW *ai_next;
 } ADDRINFOEXW, *PADDRINFOEXW, *LPADDRINFOEXW;
 
-typedef struct _WSAOVERLAPPED {
-  DWORD    Internal;
-  DWORD    InternalHigh;
-  DWORD    Offset;
-  DWORD    OffsetHigh;
-  WSAEVENT hEvent;
-} WSAOVERLAPPED, *LPWSAOVERLAPPED;
+// typedef struct _WSAOVERLAPPED {
+  // DWORD    Internal;
+  // DWORD    InternalHigh;
+  // DWORD    Offset;
+  // DWORD    OffsetHigh;
+  // WSAEVENT hEvent;
+// } WSAOVERLAPPED, *LPWSAOVERLAPPED;
 
 struct timezone {
     int tz_minuteswest; /* minutes W of Greenwich */
@@ -161,27 +166,27 @@ struct getaddrinfo_args
     char *servname;
 };	
 
-typedef struct addrinfo {
-  int             ai_flags;
-  int             ai_family;
-  int             ai_socktype;
-  int             ai_protocol;
-  size_t          ai_addrlen;
-  char            *ai_canonname;
-  struct sockaddr *ai_addr;
-  struct addrinfo *ai_next;
-} ADDRINFOA, *PADDRINFOA;
+// typedef struct addrinfo {
+  // int             ai_flags;
+  // int             ai_family;
+  // int             ai_socktype;
+  // int             ai_protocol;
+  // size_t          ai_addrlen;
+  // char            *ai_canonname;
+  // struct sockaddr *ai_addr;
+  // struct addrinfo *ai_next;
+// } ADDRINFOA, *PADDRINFOA;
 
-typedef struct addrinfoW {
-  int ai_flags;
-  int ai_family;
-  int ai_socktype;
-  int ai_protocol;
-  size_t ai_addrlen;
-  PWSTR ai_canonname;
-  struct sockaddr *ai_addr;
-  struct addrinfoW *ai_next;
-} ADDRINFOW, *PADDRINFOW;
+// typedef struct addrinfoW {
+  // int ai_flags;
+  // int ai_family;
+  // int ai_socktype;
+  // int ai_protocol;
+  // size_t ai_addrlen;
+  // PWSTR ai_canonname;
+  // struct sockaddr *ai_addr;
+  // struct addrinfoW *ai_next;
+// } ADDRINFOW, *PADDRINFOW;
 
 typedef struct addrinfoexA {
     int ai_flags;
@@ -236,86 +241,86 @@ typedef void (CALLBACK *LPWSAOVERLAPPED_COMPLETION_ROUTINE)
     DWORD dwFlags
 );
 
-typedef struct _WSABUF {
-  ULONG len;
-  CHAR FAR *buf;
-} WSABUF, FAR * LPWSABUF;
+// typedef struct _WSABUF {
+  // ULONG len;
+  // CHAR FAR *buf;
+// } WSABUF, FAR * LPWSABUF;
 
-typedef struct _WSAMSG {
-  LPSOCKADDR name;
-  INT namelen;
-  LPWSABUF lpBuffers;
-#if (_WIN32_WINNT >= 0x0600)
-  ULONG dwBufferCount;
-#else
-  DWORD dwBufferCount;
-#endif
-  WSABUF Control;
-#if (_WIN32_WINNT >= 0x0600)
-  ULONG dwFlags;
-#else
-  DWORD dwFlags;
-#endif
-} WSAMSG, *PWSAMSG, *FAR LPWSAMSG;
+// typedef struct _WSAMSG {
+  // LPSOCKADDR name;
+  // INT namelen;
+  // LPWSABUF lpBuffers;
+// #if (_WIN32_WINNT >= 0x0600)
+  // ULONG dwBufferCount;
+// #else
+  // DWORD dwBufferCount;
+// #endif
+  // WSABUF Control;
+// #if (_WIN32_WINNT >= 0x0600)
+  // ULONG dwFlags;
+// #else
+  // DWORD dwFlags;
+// #endif
+// } WSAMSG, *PWSAMSG, *FAR LPWSAMSG;
 
-typedef struct _WSAPROTOCOLCHAIN {
-  int ChainLen;
-  DWORD ChainEntries[MAX_PROTOCOL_CHAIN];
-} WSAPROTOCOLCHAIN, *LPWSAPROTOCOLCHAIN;
+// typedef struct _WSAPROTOCOLCHAIN {
+  // int ChainLen;
+  // DWORD ChainEntries[MAX_PROTOCOL_CHAIN];
+// } WSAPROTOCOLCHAIN, *LPWSAPROTOCOLCHAIN;
 
-typedef struct _WSAPROTOCOL_INFOA {
-  DWORD dwServiceFlags1;
-  DWORD dwServiceFlags2;
-  DWORD dwServiceFlags3;
-  DWORD dwServiceFlags4;
-  DWORD dwProviderFlags;
-  GUID ProviderId;
-  DWORD dwCatalogEntryId;
-  WSAPROTOCOLCHAIN ProtocolChain;
-  int iVersion;
-  int iAddressFamily;
-  int iMaxSockAddr;
-  int iMinSockAddr;
-  int iSocketType;
-  int iProtocol;
-  int iProtocolMaxOffset;
-  int iNetworkByteOrder;
-  int iSecurityScheme;
-  DWORD dwMessageSize;
-  DWORD dwProviderReserved;
-  CHAR szProtocol[WSAPROTOCOL_LEN+1];
-} WSAPROTOCOL_INFOA, *LPWSAPROTOCOL_INFOA;
+// typedef struct _WSAPROTOCOL_INFOA {
+  // DWORD dwServiceFlags1;
+  // DWORD dwServiceFlags2;
+  // DWORD dwServiceFlags3;
+  // DWORD dwServiceFlags4;
+  // DWORD dwProviderFlags;
+  // GUID ProviderId;
+  // DWORD dwCatalogEntryId;
+  // WSAPROTOCOLCHAIN ProtocolChain;
+  // int iVersion;
+  // int iAddressFamily;
+  // int iMaxSockAddr;
+  // int iMinSockAddr;
+  // int iSocketType;
+  // int iProtocol;
+  // int iProtocolMaxOffset;
+  // int iNetworkByteOrder;
+  // int iSecurityScheme;
+  // DWORD dwMessageSize;
+  // DWORD dwProviderReserved;
+  // CHAR szProtocol[WSAPROTOCOL_LEN+1];
+// } WSAPROTOCOL_INFOA, *LPWSAPROTOCOL_INFOA;
 
-typedef struct _WSAPROTOCOL_INFOW {
-  DWORD dwServiceFlags1;
-  DWORD dwServiceFlags2;
-  DWORD dwServiceFlags3;
-  DWORD dwServiceFlags4;
-  DWORD dwProviderFlags;
-  GUID ProviderId;
-  DWORD dwCatalogEntryId;
-  WSAPROTOCOLCHAIN ProtocolChain;
-  int iVersion;
-  int iAddressFamily;
-  int iMaxSockAddr;
-  int iMinSockAddr;
-  int iSocketType;
-  int iProtocol;
-  int iProtocolMaxOffset;
-  int iNetworkByteOrder;
-  int iSecurityScheme;
-  DWORD dwMessageSize;
-  DWORD dwProviderReserved;
-  WCHAR szProtocol[WSAPROTOCOL_LEN+1];
-} WSAPROTOCOL_INFOW, * LPWSAPROTOCOL_INFOW;
+// typedef struct _WSAPROTOCOL_INFOW {
+  // DWORD dwServiceFlags1;
+  // DWORD dwServiceFlags2;
+  // DWORD dwServiceFlags3;
+  // DWORD dwServiceFlags4;
+  // DWORD dwProviderFlags;
+  // GUID ProviderId;
+  // DWORD dwCatalogEntryId;
+  // WSAPROTOCOLCHAIN ProtocolChain;
+  // int iVersion;
+  // int iAddressFamily;
+  // int iMaxSockAddr;
+  // int iMinSockAddr;
+  // int iSocketType;
+  // int iProtocol;
+  // int iProtocolMaxOffset;
+  // int iNetworkByteOrder;
+  // int iSecurityScheme;
+  // DWORD dwMessageSize;
+  // DWORD dwProviderReserved;
+  // WCHAR szProtocol[WSAPROTOCOL_LEN+1];
+// } WSAPROTOCOL_INFOW, * LPWSAPROTOCOL_INFOW;
 
-#ifdef UNICODE
-typedef WSAPROTOCOL_INFOW WSAPROTOCOL_INFO;
-typedef LPWSAPROTOCOL_INFOW LPWSAPROTOCOL_INFO;
-#else
-typedef WSAPROTOCOL_INFOA WSAPROTOCOL_INFO;
-typedef LPWSAPROTOCOL_INFOA LPWSAPROTOCOL_INFO;
-#endif
+// #ifdef UNICODE
+// typedef WSAPROTOCOL_INFOW WSAPROTOCOL_INFO;
+// typedef LPWSAPROTOCOL_INFOW LPWSAPROTOCOL_INFO;
+// #else
+// typedef WSAPROTOCOL_INFOA WSAPROTOCOL_INFO;
+// typedef LPWSAPROTOCOL_INFOA LPWSAPROTOCOL_INFO;
+// #endif
 
 // typedef struct in6_addr {
   // union {
@@ -380,3 +385,22 @@ WSAIoctl(IN SOCKET s,
          OUT LPDWORD lpcbBytesReturned,
          IN LPWSAOVERLAPPED lpOverlapped,
          IN LPWSAOVERLAPPED_COMPLETION_ROUTINE lpCompletionRoutine);		  
+		 
+int
+WSAAPI
+WSASendMsg(
+  IN SOCKET Handle,
+  IN LPWSAMSG lpMsg,
+  IN DWORD dwFlags,
+  OUT OPTIONAL LPDWORD lpNumberOfBytesSent,
+  IN OUT OPTIONAL LPWSAOVERLAPPED lpOverlapped,
+  IN OPTIONAL LPWSAOVERLAPPED_COMPLETION_ROUTINE lpCompletionRoutine);		 
+  
+WSAEVENT
+WSAAPI
+WSACreateEvent(void);  
+
+BOOL
+WSAAPI
+WSACloseEvent(
+  _In_ WSAEVENT hEvent);

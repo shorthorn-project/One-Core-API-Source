@@ -211,158 +211,255 @@ static int convert_poll_w2u(int events)
     return ret;
 }
 
-int
-gettimeofday(PTIMEVAL tp, struct timezone * tzp)
+static int poll_compat(LPWSAPOLLFD *fds, ULONG nfds, int timeout)
 {
-    FILETIME    file_time;
-    SYSTEMTIME  system_time;
-    ULARGE_INTEGER ularge;
+    DWORD to = (timeout >= 0) ? (DWORD)timeout : INFINITE;
+	DWORD ret = WSA_WAIT_FAILED;
+	WSAEVENT *evts;	
+	unsigned count = 0;
+	unsigned i;
+	struct timeval tv = { 0, 0 };
 
-    GetSystemTime(&system_time);
-    SystemTimeToFileTime(&system_time, &file_time);
-    ularge.u.LowPart = file_time.dwLowDateTime;
-    ularge.u.HighPart = file_time.dwHighDateTime;
-
-    tp->tv_sec = (long) ((ularge.QuadPart - epoch) / 10000000L);
-    tp->tv_usec = (long) (system_time.wMilliseconds * 1000);
-
-    return 0;
-}
-
-static int do_poll(struct pollfd *pollfds, int count, int timeout)
-{
-    struct timeval tv1, tv2;
-    int ret, torig = timeout;
-
-    if (timeout > 0) gettimeofday( &tv1, 0 );
-
-    while ((ret = poll( pollfds, count, timeout )) < 0)
-    {
-        if (errno != EINTR) break;
-        if (timeout < 0) continue;
-        if (timeout == 0) return 0;
-
-        gettimeofday( &tv2, 0 );
-
-        tv2.tv_sec  -= tv1.tv_sec;
-        tv2.tv_usec -= tv1.tv_usec;
-        if (tv2.tv_usec < 0)
+    if (nfds == 0)
+    {    /* WSAWaitForMultipleEvents() does not allow zero events */
+        if (SleepEx(to, TRUE))
         {
-            tv2.tv_usec += 1000000;
-            tv2.tv_sec  -= 1;
+            errno = EINTR;
+            return -1;
+        }
+        return 0;
+    }
+
+    evts = malloc(nfds * sizeof (WSAEVENT));
+    if (evts == NULL)
+        return -1; /* ENOMEM */
+
+    
+    for (i = 0; i < nfds; i++)
+    {
+        SOCKET fd = fds[i]->fd;
+        long mask = FD_CLOSE;
+        fd_set rdset, wrset, exset;
+
+        FD_ZERO(&rdset);
+        FD_ZERO(&wrset);
+        FD_ZERO(&exset);
+        FD_SET(fd, &exset);
+
+        if (fds[i]->events & POLLRDNORM)
+        {
+            mask |= FD_READ | FD_ACCEPT;
+            FD_SET(fd, &rdset);
+        }
+        if (fds[i]->events & POLLWRNORM)
+        {
+            mask |= FD_WRITE | FD_CONNECT;
+            FD_SET(fd, &wrset);
+        }
+        if (fds[i]->events & POLLPRI)
+            mask |= FD_OOB;
+
+        fds[i]->revents = 0;
+
+        evts[i] = WSACreateEvent();
+        if (evts[i] == WSA_INVALID_EVENT)
+        {
+            while (i > 0)
+                WSACloseEvent(evts[--i]);
+            free(evts);
+            errno = ENOMEM;
+            return -1;
         }
 
-        timeout = torig - (tv2.tv_sec * 1000) - (tv2.tv_usec + 999) / 1000;
-        if (timeout <= 0) return 0;
+        if (WSAEventSelect(fds[i]->fd, evts[i], mask)
+         && WSAGetLastError() == WSAENOTSOCK)
+            fds[i]->revents |= POLLNVAL;
+        
+        /* By its horrible design, WSAEnumNetworkEvents() only enumerates
+         * events that were not already signaled (i.e. it is edge-triggered).
+         * WSAPoll() would be better in this respect, but worse in others.
+         * So use WSAEnumNetworkEvents() after manually checking for pending
+         * events. */
+        if (select(0, &rdset, &wrset, &exset, &tv) > 0)
+        {
+            if (FD_ISSET(fd, &rdset))
+                fds[i]->revents |= fds[i]->events & POLLRDNORM;
+            if (FD_ISSET(fd, &wrset))
+                fds[i]->revents |= fds[i]->events & POLLWRNORM;
+            if (FD_ISSET(fd, &exset))
+                /* To add pain to injury, POLLERR and POLLPRI cannot be
+                 * distinguished here. */
+                fds[i]->revents |= POLLERR | (fds[i]->events & POLLPRI);
+        }
+
+        if (fds[i]->revents != 0 && ret == WSA_WAIT_FAILED)
+            ret = WSA_WAIT_EVENT_0 + i;
     }
-    return ret;
-}
 
-static inline int get_sock_fd( SOCKET s, DWORD access, unsigned int *options )
-{
-    //int fd;
-    //if (set_error( wine_server_handle_to_fd( SOCKET2HANDLE(s), access, &fd, options ) ))
+    if (ret == WSA_WAIT_FAILED)
+        ret = WSAWaitForMultipleEvents(nfds, evts, FALSE, to, TRUE);
+    
+    for (i = 0; i < nfds; i++)
+    {
+        WSANETWORKEVENTS ne;
+
+        if (WSAEnumNetworkEvents(fds[i]->fd, evts[i], &ne))
+            memset(&ne, 0, sizeof (ne));
+        WSAEventSelect(fds[i]->fd, evts[i], 0);
+        WSACloseEvent(evts[i]);
+
+        if (ne.lNetworkEvents & FD_CONNECT)
+        {
+            fds[i]->revents |= POLLWRNORM;
+            if (ne.iErrorCode[FD_CONNECT_BIT] != 0)
+                fds[i]->revents |= POLLERR;
+        }
+        if (ne.lNetworkEvents & FD_CLOSE)
+        {
+            fds[i]->revents |= (fds[i]->events & POLLRDNORM) | POLLHUP;
+            if (ne.iErrorCode[FD_CLOSE_BIT] != 0)
+                fds[i]->revents |= POLLERR;
+        }
+        if (ne.lNetworkEvents & FD_ACCEPT)
+        {
+            fds[i]->revents |= POLLRDNORM;
+            if (ne.iErrorCode[FD_ACCEPT_BIT] != 0)
+                fds[i]->revents |= POLLERR;
+        }
+        if (ne.lNetworkEvents & FD_OOB)
+        {
+            fds[i]->revents |= POLLPRI;
+            if (ne.iErrorCode[FD_OOB_BIT] != 0)
+                fds[i]->revents |= POLLERR;
+        }
+        if (ne.lNetworkEvents & FD_READ)
+        {
+            fds[i]->revents |= POLLRDNORM;
+            if (ne.iErrorCode[FD_READ_BIT] != 0)
+                fds[i]->revents |= POLLERR;
+        }
+        if (ne.lNetworkEvents & FD_WRITE)
+        {
+            fds[i]->revents |= POLLWRNORM;
+            if (ne.iErrorCode[FD_WRITE_BIT] != 0)
+                fds[i]->revents |= POLLERR;
+        }
+        count += fds[i]->revents != 0;
+    }
+
+    free(evts);
+
+    if (count == 0 && ret == WSA_WAIT_IO_COMPLETION)
+    {
+        errno = EINTR;
         return -1;
-    //return fd;
+    }
+    return count;
 }
 
-static inline void release_sock_fd( SOCKET s, int fd )
+int WINAPI WSAPoll(LPWSAPOLLFD fds, ULONG nfds, INT timeout)
 {
-    //wine_server_release_fd( SOCKET2HANDLE(s), fd );
-}
-
-int poll( struct pollfd *fds, unsigned int count, int timeout )
-{
-	return 0;
+    if (timeout < 0)
+    {
+        /* HACK: In some cases, we lose some events because events are
+         * destroyed and recreated only when we need to poll. In order to work
+         * arround this issue, we try to call the poll compat function every
+         * 100ms (in case of infinite timeout). */
+        int ret;
+        while ((ret = poll_compat(&fds, nfds, 100)) == 0);
+        return ret;
+    }
+    else
+        return poll_compat(&fds, nfds, timeout);
 }
 
 /***********************************************************************
  *     WSAPoll
  */
-    WSAAPI
-    WSAPoll(
-        _Inout_ WSAPOLLFD *fdArray,
-        _In_ ULONG fds,
-        _In_ INT timeout
-        )
-    {
-        // if (auto const pWSAPoll = try_get_WSAPoll())
+    // WSAAPI
+    // WSAPoll(
+        // _Inout_ WSAPOLLFD *fdArray,
+        // _In_ ULONG fds,
+        // _In_ INT timeout
+        // )
+    // {
+        // // if (auto const pWSAPoll = try_get_WSAPoll())
+        // // {
+            // // return pWSAPoll(fdArray, fds, timeout);
+        // // }
+
+        // fd_set        readfds;
+        // fd_set        writefds;
+        // fd_set        exceptfds;
+		// ULONG i;
+        // TIMEVAL* __ptimeout = NULL;
+		// int result;
+
+        // TIMEVAL time_out;		
+
+        // FD_ZERO(&readfds);
+        // FD_ZERO(&writefds);
+        // FD_ZERO(&exceptfds);
+
+        // for (i = 0; i < fds; i++)
         // {
-            // return pWSAPoll(fdArray, fds, timeout);
+            // WSAPOLLFD fd = fdArray[i];
+
+            // //Read (in) socket
+            // if (fd.events & (POLLRDNORM | POLLRDBAND | POLLPRI))
+            // {
+                // FD_SET(fd.fd, &readfds);
+            // }
+
+            // //Write (out) socket
+            // if (fd.events & (POLLWRNORM | POLLWRBAND))
+            // {
+                // FD_SET(fd.fd, &writefds);
+            // }
+
+            // //异常
+            // if (fd.events & (POLLERR | POLLHUP | POLLNVAL))
+            // {
+                // FD_SET(fd.fd, &exceptfds);
+            // }
         // }
 
-        fd_set        readfds;
-        fd_set        writefds;
-        fd_set        exceptfds;
-		ULONG i;
-        TIMEVAL* __ptimeout = NULL;
-		int result;
 
-        TIMEVAL time_out;		
+        // /*
+        // timeout  < 0 ，无限等待
+        // timeout == 0 ，马上回来
+        // timeout  >0  ，最长等这个时间
+        // */
 
-        FD_ZERO(&readfds);
-        FD_ZERO(&writefds);
-        FD_ZERO(&exceptfds);
+        // if (timeout >= 0)
+        // {
+            // time_out.tv_sec = timeout / 1000;
+            // time_out.tv_usec = (timeout % 1000) * 1000;
+            // __ptimeout = &time_out;
+        // }
 
-        for (i = 0; i < fds; i++)
-        {
-            WSAPOLLFD fd = fdArray[i];
+        // result = select(1, &readfds, &writefds, &exceptfds, __ptimeout);
 
-            //Read (in) socket
-            if (fd.events & (POLLRDNORM | POLLRDBAND | POLLPRI))
-            {
-                FD_SET(fd.fd, &readfds);
-            }
+        // if (result > 0)
+        // {
+            // for (i = 0; i < fds; i++)
+            // {
+                // WSAPOLLFD fd = fdArray[i];
 
-            //Write (out) socket
-            if (fd.events & (POLLWRNORM | POLLWRBAND))
-            {
-                FD_SET(fd.fd, &writefds);
-            }
+                // fd.revents = 0;
+                // if (FD_ISSET(fd.fd, &readfds))
+                    // fd.revents |= fd.events & (POLLRDNORM | POLLRDBAND | POLLPRI);
 
-            //异常
-            if (fd.events & (POLLERR | POLLHUP | POLLNVAL))
-            {
-                FD_SET(fd.fd, &exceptfds);
-            }
-        }
+                // if (FD_ISSET(fd.fd, &writefds))
+                    // fd.revents |= fd.events & (POLLWRNORM | POLLWRBAND);
 
-
-        /*
-        timeout  < 0 ，无限等待
-        timeout == 0 ，马上回来
-        timeout  >0  ，最长等这个时间
-        */
-
-        if (timeout >= 0)
-        {
-            time_out.tv_sec = timeout / 1000;
-            time_out.tv_usec = (timeout % 1000) * 1000;
-            __ptimeout = &time_out;
-        }
-
-        result = select(1, &readfds, &writefds, &exceptfds, __ptimeout);
-
-        if (result > 0)
-        {
-            for (i = 0; i < fds; i++)
-            {
-                WSAPOLLFD fd = fdArray[i];
-
-                fd.revents = 0;
-                if (FD_ISSET(fd.fd, &readfds))
-                    fd.revents |= fd.events & (POLLRDNORM | POLLRDBAND | POLLPRI);
-
-                if (FD_ISSET(fd.fd, &writefds))
-                    fd.revents |= fd.events & (POLLWRNORM | POLLWRBAND);
-
-                if (FD_ISSET(fd.fd, &exceptfds))
-                    fd.revents |= fd.events & (POLLERR | POLLHUP | POLLNVAL);
-            }
-        }
+                // if (FD_ISSET(fd.fd, &exceptfds))
+                    // fd.revents |= fd.events & (POLLERR | POLLHUP | POLLNVAL);
+            // }
+        // }
     
-        return result;
-    }
+        // return result;
+    // }
 
 // /***********************************************************************
 // *              InetPtonW                      (WS2_32.@)
@@ -860,10 +957,18 @@ BOOL WINAPI WSAConnectByNameA(SOCKET s, const char *node_name, const char *servi
 /***********************************************************************
  *          WSAConnectByNameW      (WS2_32.@)
  */
-BOOL WINAPI WSAConnectByNameW(SOCKET s, const WCHAR *node_name, const WCHAR *service_name,
-                              DWORD *local_addr_len, struct sockaddr *local_addr,
-                              DWORD *remote_addr_len, struct sockaddr *remote_addr,
-                              const struct timeval *timeout, WSAOVERLAPPED *reserved)
+BOOL 
+WINAPI 
+WSAConnectByNameW(
+	SOCKET s, 
+	LPWSTR node_name, 
+	LPWSTR service_name,
+    DWORD *local_addr_len, 
+	struct sockaddr *local_addr,
+    DWORD *remote_addr_len, 
+	struct sockaddr *remote_addr,
+    const struct timeval *timeout, 
+	WSAOVERLAPPED *reserved)
 {
     char *node_nameA, *service_nameA;
     BOOL ret;

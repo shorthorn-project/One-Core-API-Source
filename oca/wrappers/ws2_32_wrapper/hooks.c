@@ -134,7 +134,7 @@ int WSAAPI WSAIoctlInternal(
         *(SOCKET*)lpvOutBuffer = s;
         *lpcbBytesReturned = sizeof(SOCKET);
         return 0;
-	}else if (dwIoControlCode == SIO_LOOPBACK_FAST_PATH) {
+	} else if (dwIoControlCode == SIO_LOOPBACK_FAST_PATH) {
         // Let Java and other applications handle fast TCP loopback not being supported. 
         return WSAEOPNOTSUPP;
     } else if (dwIoControlCode == SIO_GET_EXTENSION_FUNCTION_POINTER) {
@@ -146,15 +146,32 @@ int WSAAPI WSAIoctlInternal(
 		if ((res = WSAIoctl(s, dwIoControlCode, lpvInBuffer, cbInBuffer, lpvOutBuffer, cbOutBuffer, lpcbBytesReturned, lpOverlapped, lpCompletionRoutine))) {
 			if (lpvInBuffer && lpvOutBuffer && cbInBuffer >= sizeof(GUID) && cbOutBuffer >= sizeof(PVOID)) {
 				if (memcmp(&WSASendMsg_GUID, lpvInBuffer, sizeof(GUID)) == 0) {
-					lpvOutBuffer = &WSASendMsg_GUID;
+					*(LPVOID*)lpvOutBuffer = (LPVOID)WSASendMsg; // has to be a pointer to WSASendMsg function itself.
 					return 0;
 				}
 			}
 		}
 		return res;
+	} else if (dwIoControlCode == SIO_UDP_NETRESET || dwIoControlCode == SIO_UDP_CONNRESET) {
+		// MSDN claims that they are supported on Windows XP, but in reality, there's reason to doubt this claim as they both are not present in 2003 SP1 DDK.
+		// Needed by many Golang applications: https://github.com/shorthorn-project/One-Core-API-Binaries/issues/563
+		
+		return 0;
 	}
+	
     // fall back into original function
-    return WSAIoctl(s, dwIoControlCode, lpvInBuffer, cbInBuffer, lpvOutBuffer, cbOutBuffer, lpcbBytesReturned, lpOverlapped, lpCompletionRoutine); 
+    res = WSAIoctl(s, dwIoControlCode, lpvInBuffer, cbInBuffer, lpvOutBuffer, cbOutBuffer, lpcbBytesReturned, lpOverlapped, lpCompletionRoutine); 
+	
+	// Suppress WSAEINVAL for unsupported/unknown IOCTLs (in case there are more and more of them.)
+    if (res == SOCKET_ERROR) {
+        int err = WSAGetLastError();
+        if (err == WSAEINVAL) {
+            DbgPrint("WSAIoctlInternal: unsupported IOCTL %lx. If this is encountered report to OCA so it is properly supported.\n", dwIoControlCode);
+            return 0; // Return success to the caller
+        }
+	}
+	
+	return res;
 }
 
 SOCKET WSAAPI WSASocketAInternal(int af, int type, int protocol,
