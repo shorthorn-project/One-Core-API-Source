@@ -436,16 +436,17 @@ static void CALLBACK process_rtl_work_item( TP_CALLBACK_INSTANCE *instance, void
 static DWORD CALLBACK iocp_poller(LPVOID Arg)
 {
     HANDLE cport = Arg;
+	NTSTATUS res;
 
     while( TRUE )
     {
         PRTL_OVERLAPPED_COMPLETION_ROUTINE callback;
         LPVOID overlapped;
         IO_STATUS_BLOCK iosb;
-        NTSTATUS res = NtRemoveIoCompletion( cport, (PULONG_PTR)&callback, (PULONG_PTR)&overlapped, &iosb, NULL );
+        res = NtRemoveIoCompletion( cport, (PVOID *)&callback, (PVOID *)&overlapped, &iosb, NULL );
         if (res)
         {
-            ERR("NtRemoveIoCompletion failed: 0x%lx\n", res);
+            DbgPrint("NtRemoveIoCompletion failed: 0x%lx\n", res);
         }
         else
         {
@@ -798,7 +799,7 @@ static void CALLBACK timerqueue_thread_proc( void *param )
 {
     LARGE_INTEGER abs_now, rel_now;
 
-    TRACE( "starting timer queue thread\n" );
+    DbgPrint( "starting timer queue thread\n" );
     set_thread_name(L"wineoca_threadpool_timerqueue");
 
     RtlEnterCriticalSection( &timerqueue.cs );
@@ -826,7 +827,7 @@ static void CALLBACK timerqueue_thread_proc( void *param )
     timerqueue.thread_running = FALSE;
     RtlLeaveCriticalSection( &timerqueue.cs );
 
-    TRACE( "terminating timer queue thread\n" );
+    DbgPrint( "terminating timer queue thread\n" );
     RtlExitUserThread( 0 );
 }
 
@@ -867,99 +868,6 @@ static struct timer_queue *get_timer_queue(HANDLE TimerQueue)
         }
         return default_timer_queue;
     }
-}
-
-/***********************************************************************
- *           timerqueue_thread_proc    (internal)
- */
-static void CALLBACK timerqueue_thread_proc( void *param )
-{
-    ULONGLONG timeout_lower, timeout_upper, new_timeout;
-    struct threadpool_object *other_timer;
-    LARGE_INTEGER now, timeout;
-    struct list *ptr;
-
-    //DbgPrint( "starting timer queue thread\n" );
-	set_thread_name(L"wineoca_threadpool_timerqueue");
-	
-    RtlEnterCriticalSection( &timerqueue.cs );
-    for (;;)
-    {
-        NtQuerySystemTime( &now );
-
-        /* Check for expired timers. */
-        while ((ptr = list_head( &timerqueue.pending_timers )))
-        {
-            struct threadpool_object *timer = LIST_ENTRY( ptr, struct threadpool_object, u.timer.timer_entry );
-            ASSERT( timer->type == TP_OBJECT_TYPE_TIMER );
-            ASSERT( timer->u.timer.timer_pending );
-            if (timer->u.timer.timeout > now.QuadPart)
-                break;
-
-            /* Queue a new callback in one of the worker threads. */
-            list_remove( &timer->u.timer.timer_entry );
-            timer->u.timer.timer_pending = FALSE;
-            tp_object_submit( timer, FALSE );
-
-            /* Insert the timer back into the queue, except it's marked for shutdown. */
-            if (timer->u.timer.period && !timer->shutdown)
-            {
-                timer->u.timer.timeout += (ULONGLONG)timer->u.timer.period * 10000;
-                if (timer->u.timer.timeout <= now.QuadPart)
-                    timer->u.timer.timeout = now.QuadPart + 1;
-
-                LIST_FOR_EACH_ENTRY( other_timer, &timerqueue.pending_timers,
-                                     struct threadpool_object, u.timer.timer_entry )
-                {
-                    ASSERT( other_timer->type == TP_OBJECT_TYPE_TIMER );
-                    if (timer->u.timer.timeout < other_timer->u.timer.timeout)
-                        break;
-                }
-                list_add_before( &other_timer->u.timer.timer_entry, &timer->u.timer.timer_entry );
-                timer->u.timer.timer_pending = TRUE;
-            }
-        }
-
-        timeout_lower = TIMEOUT_INFINITE;
-        timeout_upper = TIMEOUT_INFINITE;
-
-        /* Determine next timeout and use the window length to optimize wakeup times. */
-        LIST_FOR_EACH_ENTRY( other_timer, &timerqueue.pending_timers,
-                             struct threadpool_object, u.timer.timer_entry )
-        {
-            ASSERT( other_timer->type == TP_OBJECT_TYPE_TIMER );
-            if (other_timer->u.timer.timeout >= timeout_upper)
-                break;
-
-            timeout_lower = other_timer->u.timer.timeout;
-            new_timeout   = timeout_lower + (ULONGLONG)other_timer->u.timer.window_length * 10000;
-            if (new_timeout < timeout_upper)
-                timeout_upper = new_timeout;
-        }
-
-        /* Wait for timer update events or until the next timer expires. */
-        if (timerqueue.objcount)
-        {
-            timeout.QuadPart = timeout_lower;
-            RtlSleepConditionVariableCS( &timerqueue.update_event, &timerqueue.cs, &timeout );
-            continue;
-        }
-
-        /* All timers have been destroyed, if no new timers are created
-         * within some amount of time, then we can shutdown this thread. */
-        timeout.QuadPart = (ULONGLONG)THREADPOOL_WORKER_TIMEOUT * -10000;
-        if (RtlSleepConditionVariableCS( &timerqueue.update_event, &timerqueue.cs,
-            &timeout ) == STATUS_TIMEOUT && !timerqueue.objcount)
-        {
-            break;
-        }
-    }
-
-    timerqueue.thread_running = FALSE;
-    RtlLeaveCriticalSection( &timerqueue.cs );
-
-    DbgPrint( "terminating timer queue thread\n" );
-    RtlExitUserThread( 0 );
 }
 
 /***********************************************************************
@@ -1026,8 +934,8 @@ static NTSTATUS tp_timerqueue_lock( struct threadpool_object *timer )
             return status;
         }
 
-        status = RtlCreateUserThread( GetCurrentProcess(), NULL, FALSE, 0, 0, 0,
-                                      timerqueue_thread_proc, NULL, &thread, NULL );
+        status = RtlCreateUserThread( NtCurrentProcess(), NULL, FALSE, 0, 0, 0,
+                                      (PTHREAD_START_ROUTINE)timerqueue_thread_proc, NULL, &thread, NULL );
         if (status != STATUS_SUCCESS)
         {
             NtClose( timerqueue.timers[ABS_TIMER] );
@@ -1992,7 +1900,7 @@ static BOOL tp_object_release( struct threadpool_object *object )
     if (InterlockedDecrement( &object->refcount ))
         return FALSE;
 
-    TRACE( "destroying object %p of type %u\n", object, object->type );
+    //TRACE( "destroying object %p of type %u\n", object, object->type );
 
     ASSERT( object->shutdown );
     ASSERT( !object->num_pending_callbacks );
@@ -2026,7 +1934,7 @@ static BOOL tp_object_release( struct threadpool_object *object )
     if (object->completed_event && object->completed_event != INVALID_HANDLE_VALUE)
         NtSetEvent( object->completed_event, NULL );
 
-    RtlFreeHeap( GetProcessHeap(), 0, object );
+    RtlFreeHeap( RtlGetProcessHeap(), 0, object );
     return TRUE;
 }
 
@@ -2862,7 +2770,7 @@ BOOL WINAPI TpSetTimerEx( TP_TIMER *timer, LARGE_INTEGER *timeout, LONG period, 
     RtlEnterCriticalSection( &timerqueue.cs );
 	
     ASSERT( this->u.timer.timer_initialized );
-	has_timer = this->u_timer->timer_set;
+	has_timer = this->u.timer.timer_set;
 	this->u.timer.timer_set = timeout != NULL;
 	
     /* Convert relative timeout to absolute timestamp and handle a timeout

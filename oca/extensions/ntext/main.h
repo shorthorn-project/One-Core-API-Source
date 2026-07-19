@@ -136,6 +136,14 @@ static RTL_CRITICAL_SECTION loader_section;
 #define THREAD_CREATE_FLAGS_ACCESS_CHECK_IN_TARGET  0x00000020
 #define THREAD_CREATE_FLAGS_INITIAL_THREAD          0x00000080
 
+//
+// Define the bit masks exclusive to type CmResourceTypeMemoryLarge.
+//
+#define CM_RESOURCE_MEMORY_LARGE                0x0E00
+#define CM_RESOURCE_MEMORY_LARGE_40             0x0200
+#define CM_RESOURCE_MEMORY_LARGE_48             0x0400
+#define CM_RESOURCE_MEMORY_LARGE_64             0x0800
+
 /* Enumarations ****************************************/
 
 /* Structs *********************************************/
@@ -1120,6 +1128,7 @@ typedef size_t SYNCSTATUS;
 void NTAPI RtlBackoff(USHORT* const pCount);
 void NTAPI RtlpInitSRWLock(PEB* pPEB);
 void NTAPI RtlpInitConditionVariable(PEB* pPeb);
+BOOL NTAPI RtlDllShutdownInProgress(VOID);
 
 HANDLE __fastcall GetGlobalKeyedEventHandle();
 

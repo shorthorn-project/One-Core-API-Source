@@ -84,8 +84,6 @@ typedef struct _ADDRESS_WAIT_BLOCK
 
 //BOOL NTAPI RtlpWaitCouldDeadlock();
 
-BOOL NTAPI RtlDllShutdownInProgress(VOID);
-
 static 
 NTSTATUS 
 RtlpWaitOnAddressWithTimeout(

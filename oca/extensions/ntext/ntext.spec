@@ -1566,12 +1566,12 @@
 @ stdcall NtRemoveIoCompletionEx(ptr ptr long ptr ptr long)
 @ stdcall NtTraceControl(long ptr long ptr long ptr) 
 @ stdcall NtUnmapViewOfSectionEx(ptr ptr long)
-@ stdcall RtlGetOSProductName(ptr long) ;maybe need redirect to ntdll from longhorn (pre-reset) dll
-@ stdcall RtlGetProductInfo(long long long long ptr) 
 @ stdcall RtlAcquireSRWLockExclusive(ptr) 
 @ stdcall RtlAcquireSRWLockShared(ptr)
 @ stdcall RtlAddSIDToBoundaryDescriptor(ptr ptr)
 @ stdcall RtlCloseStringHandle(long long)
+@ stdcall RtlCmDecodeMemIoResource(ptr ptr)
+@ stdcall RtlCmEncodeMemIoResource(ptr long int64 int64)
 @ stdcall RtlCreateBoundaryDescriptor(ptr long)
 @ stdcall RtlCreateServiceSid(ptr ptr ptr) ;Cause delayed load error
 @ stdcall RtlCreateUserStack(long long long long long ptr)
@@ -1586,7 +1586,9 @@
 @ stdcall RtlGetCurrentTransaction()
 @ stdcall RtlGetFileMUIPath(long wstr wstr ptr wstr ptr ptr)
 @ stdcall RtlGetIntegerAtom(wstr ptr)
+@ stdcall RtlGetOSProductName(ptr long) ;maybe need redirect to ntdll from longhorn (pre-reset) dll
 @ stdcall RtlGetProcessPreferredUILanguages(long ptr ptr ptr)
+@ stdcall RtlGetProductInfo(long long long long ptr)
 @ stdcall RtlGetSystemPreferredUILanguages(long long ptr ptr ptr)
 @ stdcall RtlGetThreadPreferredUILanguages(long ptr ptr ptr)
 @ stdcall RtlGetUILanguageInfo(long wstr wstr ptr ptr)

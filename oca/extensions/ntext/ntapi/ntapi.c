@@ -20,6 +20,8 @@ Revision History:
 
 #include <main.h>
 
+static volatile LONG g_FlushCounter = 0;
+
 static NTSTATUS NTAPI NtLoadKeyToFixOffice2013Installer(POBJECT_ATTRIBUTES TargetKey, POBJECT_ATTRIBUTES SourceFile) {
     return NtLoadKey(TargetKey, SourceFile);
 }
@@ -266,7 +268,7 @@ NtFlushProcessWriteBuffers(VOID)
     if (!NT_SUCCESS(status) || sbi.NumberOfProcessors <= 1)
     {
 #if defined(_M_IX86)
-        asm { lock add dword ptr [esp], 0 }
+        __asm { lock add dword ptr [esp], 0 }
 #elif defined(_M_AMD64)
         _mm_mfence();
 #else
@@ -280,7 +282,7 @@ NtFlushProcessWriteBuffers(VOID)
     for (i = 0; i < sbi.NumberOfProcessors; i++)
     {
 #if defined(_M_IX86)
-        asm { lock add dword ptr [esp], 0 }
+        __asm { lock add dword ptr [esp], 0 }
 #elif defined(_M_AMD64)
         _mm_mfence();
 #else
