@@ -287,6 +287,9 @@ typedef struct _UMS_CREATE_THREAD_ATTRIBUTES {
 #define RRF_NOEXPAND            (1 << 28)
 #define RRF_ZEROONFAILURE       (1 << 29)
 
+#define MEM_ROTATE       0x800000
+#define MEM_LARGE_PAGES  0x20000000
+
 static const BOOL is_win64 = (sizeof(void *) > sizeof(int));
 volatile long TzSpecificCache;
 extern ULONG BaseDllTag;

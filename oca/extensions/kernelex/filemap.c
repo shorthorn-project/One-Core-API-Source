@@ -605,3 +605,46 @@ UnmapViewOfFile2(
 
     return UnmapViewOfFile(BaseAddress);
 }
+
+// Implemented from VxKex and is needed for the MSVC++ 14.52 link.exe.
+PVOID WINAPI MapViewOfFileNuma2(
+    HANDLE        SectionHandle,
+    HANDLE        ProcessHandle,
+    ULONGLONG    Offset,
+    PVOID        BaseAddress,
+    SIZE_T        ViewSize,
+    ULONG        AllocationType,
+    ULONG        PageProtection,
+    ULONG        PreferredNumaNode)
+{
+    NTSTATUS Status;
+
+    if (AllocationType & ~(MEM_LARGE_PAGES | MEM_TOP_DOWN | MEM_RESERVE | MEM_ROTATE)) {
+        RtlSetLastWin32Error(ERROR_INVALID_PARAMETER);
+        return NULL;
+    }
+
+    if (PreferredNumaNode != NUMA_NO_PREFERRED_NODE && PreferredNumaNode >= 64) {
+        RtlSetLastWin32Error(ERROR_INVALID_PARAMETER);
+        return NULL;
+    }
+
+    Status = NtMapViewOfSection(
+        SectionHandle,
+        ProcessHandle,
+        &BaseAddress,
+        0,
+        0,
+        (PLARGE_INTEGER) &Offset,
+        &ViewSize,
+        ViewShare,
+        AllocationType | (PreferredNumaNode + 1),
+        PageProtection);
+
+    if (!NT_SUCCESS(Status)) {
+        BaseSetLastNTError(Status);
+        return NULL;
+    }
+
+    return BaseAddress;
+}

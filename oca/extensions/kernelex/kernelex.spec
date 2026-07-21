@@ -1485,6 +1485,7 @@
 @ stdcall IsEnclaveTypeSupported(long)
 @ stdcall IsUserCetAvaliableInEnvironment(long)
 @ stdcall IsWow64Process2(ptr ptr ptr)
+@ stdcall MapViewOfFileNuma2(ptr ptr long ptr long long long long)
 @ stdcall QueryInterruptTime(ptr)
 @ stdcall QueryInterruptTimePrecise(ptr)
 @ stdcall QueryUnbiasedInterruptTimePrecise(ptr)
