@@ -416,3 +416,7 @@
 @ stdcall -stub HRGN_UserMarshal(ptr ptr ptr)
 @ stdcall -stub HRGN_UserSize(ptr long ptr)
 @ stdcall -stub HRGN_UserUnmarshal(ptr ptr ptr)
+@ stdcall -stub CoGetActivationState(int128 long ptr)
+@ stdcall -stub CoGetCallState(long ptr)
+@ stdcall -stub OleConvertOLESTREAMToIStorage2(long ptr ptr wstr long long)
+@ stdcall -stub OleConvertOLESTREAMToIStorageEx2(long ptr ptr ptr ptr ptr wstr long long)

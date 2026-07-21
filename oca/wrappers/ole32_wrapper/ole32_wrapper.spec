@@ -336,6 +336,10 @@
 ; @ stdcall StgSerializePropVariant(ptr ptr ptr) propsys.StgSerializePropVariant
 ; @ stdcall VariantToPropVariant(ptr ptr) propsys.VariantToPropVariant
 
+#winVista functions support
+@ stdcall OleConvertOLESTREAMToIStorage2(long ptr ptr wstr long long)
+@ stdcall OleConvertOLESTREAMToIStorageEx2(long ptr ptr ptr ptr ptr wstr long long)
+
 #win7 functions
 @ stdcall CoDecrementMTAUsage(ptr)
 @ stdcall CoIncrementMTAUsage(ptr)
