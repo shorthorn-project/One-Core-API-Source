@@ -2296,185 +2296,185 @@ QueryHKCRValue(
     return ErrorCode;
 }
 
-// /************************************************************************
- // *  RegQueryValueExW
- // *
- // * @implemented
- // */
-// LONG
-// WINAPI
-// RegQueryValueExW(
-    // _In_ HKEY hkeyorg,
-    // _In_ LPCWSTR name,
-    // _In_ LPDWORD reserved,
-    // _In_ LPDWORD type,
-    // _In_ LPBYTE data,
-    // _In_ LPDWORD count)
-// {
-    // HANDLE hkey;
-    // NTSTATUS status;
-    // UNICODE_STRING name_str;
-    // DWORD total_size;
-    // char buffer[256], *buf_ptr = buffer;
-    // KEY_VALUE_PARTIAL_INFORMATION *info = (KEY_VALUE_PARTIAL_INFORMATION *)buffer;
-    // static const int info_size = offsetof( KEY_VALUE_PARTIAL_INFORMATION, Data );
+/************************************************************************
+ *  RegQueryValueExW
+ *
+ * @implemented
+ */
+LONG
+WINAPI
+RegQueryValueExW(
+    _In_ HKEY hkeyorg,
+    _In_ LPCWSTR name,
+    _In_ LPDWORD reserved,
+    _In_ LPDWORD type,
+    _In_ LPBYTE data,
+    _In_ LPDWORD count)
+{
+    HANDLE hkey;
+    NTSTATUS status;
+    UNICODE_STRING name_str;
+    DWORD total_size;
+    char buffer[256], *buf_ptr = buffer;
+    KEY_VALUE_PARTIAL_INFORMATION *info = (KEY_VALUE_PARTIAL_INFORMATION *)buffer;
+    static const int info_size = offsetof( KEY_VALUE_PARTIAL_INFORMATION, Data );
 
-    // TRACE("(%p,%s,%p,%p,%p,%p=%d)\n",
-          // hkeyorg, debugstr_w(name), reserved, type, data, count,
-          // (count && data) ? *count : 0 );
+    TRACE("(%p,%s,%p,%p,%p,%p=%d)\n",
+          hkeyorg, debugstr_w(name), reserved, type, data, count,
+          (count && data) ? *count : 0 );
 
-    // if ((data && !count) || reserved) return ERROR_INVALID_PARAMETER;
+    if ((data && !count) || reserved) return ERROR_INVALID_PARAMETER;
 
-    // status = MapDefaultKey(&hkey, hkeyorg);
-    // if (!NT_SUCCESS(status))
-    // {
-        // return RtlNtStatusToDosError(status);
-    // }
+    status = MapDefaultKey(&hkey, hkeyorg);
+    if (!NT_SUCCESS(status))
+    {
+        return RtlNtStatusToDosError(status);
+    }
 
-    // if (IsHKCRKey(hkey))
-    // {
-        // LONG ErrorCode = QueryHKCRValue(hkey, name, reserved, type, data, count);
-        // ClosePredefKey(hkey);
-        // return ErrorCode;
-    // }
+    if (IsHKCRKey(hkey))
+    {
+        LONG ErrorCode = QueryHKCRValue(hkey, name, reserved, type, data, count);
+        ClosePredefKey(hkey);
+        return ErrorCode;
+    }
 
-    // RtlInitUnicodeString( &name_str, name );
+    RtlInitUnicodeString( &name_str, name );
 
-    // if (data)
-        // total_size = min( sizeof(buffer), *count + info_size );
-    // else
-        // total_size = info_size;
-
-
-    // status = NtQueryValueKey( hkey, &name_str, KeyValuePartialInformation,
-                              // buffer, total_size, &total_size );
-
-    // if (!NT_SUCCESS(status) && status != STATUS_BUFFER_OVERFLOW)
-    // {
-        // // NT: Valid handles with inexistant/null values or invalid (but not NULL) handles sets type to REG_NONE
-        // // On windows these conditions are likely to be side effects of the implementation...
-        // if (status == STATUS_INVALID_HANDLE && hkey)
-        // {
-            // if (type) *type = REG_NONE;
-            // if (count) *count = 0;
-        // }
-        // else if (status == STATUS_OBJECT_NAME_NOT_FOUND)
-        // {
-            // if (type) *type = REG_NONE;
-            // if (data == NULL && count) *count = 0;
-        // }
-        // goto done;
-    // }
-
-    // if (data)
-    // {
-        // /* retry with a dynamically allocated buffer */
-        // while (status == STATUS_BUFFER_OVERFLOW && total_size - info_size <= *count)
-        // {
-            // if (buf_ptr != buffer) HeapFree( GetProcessHeap(), 0, buf_ptr );
-            // if (!(buf_ptr = HeapAlloc( GetProcessHeap(), 0, total_size )))
-            // {
-                // ClosePredefKey(hkey);
-                // return ERROR_NOT_ENOUGH_MEMORY;
-            // }
-            // info = (KEY_VALUE_PARTIAL_INFORMATION *)buf_ptr;
-            // status = NtQueryValueKey( hkey, &name_str, KeyValuePartialInformation,
-                                      // buf_ptr, total_size, &total_size );
-        // }
-
-        // if (NT_SUCCESS(status))
-        // {
-            // memcpy( data, buf_ptr + info_size, total_size - info_size );
-            // /* if the type is REG_SZ and data is not 0-terminated
-             // * and there is enough space in the buffer NT appends a \0 */
-            // if (is_string(info->Type) && total_size - info_size <= *count-sizeof(WCHAR))
-            // {
-                // WCHAR *ptr = (WCHAR *)(data + total_size - info_size);
-                // if (ptr > (WCHAR *)data && ptr[-1]) *ptr = 0;
-            // }
-        // }
-        // else if (status != STATUS_BUFFER_OVERFLOW) goto done;
-    // }
-    // else status = STATUS_SUCCESS;
-
-    // if (type) *type = info->Type;
-    // if (count) *count = total_size - info_size;
-
- // done:
-    // if (buf_ptr != buffer) HeapFree( GetProcessHeap(), 0, buf_ptr );
-    // ClosePredefKey(hkey);
-    // return RtlNtStatusToDosError(status);
-// }
+    if (data)
+        total_size = min( sizeof(buffer), *count + info_size );
+    else
+        total_size = info_size;
 
 
-// /************************************************************************
- // *  RegQueryValueA
- // *
- // * @implemented
- // */
-// LSTATUS WINAPI RegQueryValueA( HKEY hkey, LPCSTR name, LPSTR data, LPLONG count )
-// {
-    // DWORD ret;
-    // HKEY subkey = hkey;
+    status = NtQueryValueKey( hkey, &name_str, KeyValuePartialInformation,
+                              buffer, total_size, &total_size );
 
-    // TRACE("(%p,%s,%p,%d)\n", hkey, debugstr_a(name), data, count ? *count : 0 );
+    if (!NT_SUCCESS(status) && status != STATUS_BUFFER_OVERFLOW)
+    {
+        // NT: Valid handles with inexistant/null values or invalid (but not NULL) handles sets type to REG_NONE
+        // On windows these conditions are likely to be side effects of the implementation...
+        if (status == STATUS_INVALID_HANDLE && hkey)
+        {
+            if (type) *type = REG_NONE;
+            if (count) *count = 0;
+        }
+        else if (status == STATUS_OBJECT_NAME_NOT_FOUND)
+        {
+            if (type) *type = REG_NONE;
+            if (data == NULL && count) *count = 0;
+        }
+        goto done;
+    }
 
-    // if (name && name[0])
-    // {
-    // if ((ret = RegOpenKeyA( hkey, name, &subkey )) != ERROR_SUCCESS) return ret;
-    // }
-    // ret = RegQueryValueExA( subkey, NULL, NULL, NULL, (LPBYTE)data, (LPDWORD)count );
-    // if (subkey != hkey) RegCloseKey( subkey );
-    // if (ret == ERROR_FILE_NOT_FOUND)
-    // {
-    // /* return empty string if default value not found */
-    // if (data) *data = 0;
-    // if (count) *count = 1;
-    // ret = ERROR_SUCCESS;
-    // }
-    // return ret;
-// }
+    if (data)
+    {
+        /* retry with a dynamically allocated buffer */
+        while (status == STATUS_BUFFER_OVERFLOW && total_size - info_size <= *count)
+        {
+            if (buf_ptr != buffer) HeapFree( GetProcessHeap(), 0, buf_ptr );
+            if (!(buf_ptr = HeapAlloc( GetProcessHeap(), 0, total_size )))
+            {
+                ClosePredefKey(hkey);
+                return ERROR_NOT_ENOUGH_MEMORY;
+            }
+            info = (KEY_VALUE_PARTIAL_INFORMATION *)buf_ptr;
+            status = NtQueryValueKey( hkey, &name_str, KeyValuePartialInformation,
+                                      buf_ptr, total_size, &total_size );
+        }
+
+        if (NT_SUCCESS(status))
+        {
+            memcpy( data, buf_ptr + info_size, total_size - info_size );
+            /* if the type is REG_SZ and data is not 0-terminated
+             * and there is enough space in the buffer NT appends a \0 */
+            if (is_string(info->Type) && total_size - info_size <= *count-sizeof(WCHAR))
+            {
+                WCHAR *ptr = (WCHAR *)(data + total_size - info_size);
+                if (ptr > (WCHAR *)data && ptr[-1]) *ptr = 0;
+            }
+        }
+        else if (status != STATUS_BUFFER_OVERFLOW) goto done;
+    }
+    else status = STATUS_SUCCESS;
+
+    if (type) *type = info->Type;
+    if (count) *count = total_size - info_size;
+
+ done:
+    if (buf_ptr != buffer) HeapFree( GetProcessHeap(), 0, buf_ptr );
+    ClosePredefKey(hkey);
+    return RtlNtStatusToDosError(status);
+}
 
 
-// /************************************************************************
- // *  RegQueryValueW
- // *
- // * @implemented
- // */
-// LSTATUS WINAPI RegQueryValueW( HKEY hkey, LPCWSTR name, LPWSTR data, LPLONG count )
-// {
-    // DWORD ret;
-    // HKEY subkey = hkey;
+/************************************************************************
+ *  RegQueryValueA
+ *
+ * @implemented
+ */
+LSTATUS WINAPI RegQueryValueA( HKEY hkey, LPCSTR name, LPSTR data, LPLONG count )
+{
+    DWORD ret;
+    HKEY subkey = hkey;
 
-    // TRACE("(%p,%s,%p,%d)\n", hkey, debugstr_w(name), data, count ? *count : 0 );
-    // if (hkey == NULL)
-    // {
-       // return ERROR_INVALID_HANDLE;
-    // }
-    // if (name && name[0])
-    // {
-        // ret = RegOpenKeyW( hkey, name, &subkey);
-        // if (ret != ERROR_SUCCESS)
-        // {
-            // return ret;
-        // }
-    // }
+    TRACE("(%p,%s,%p,%d)\n", hkey, debugstr_a(name), data, count ? *count : 0 );
 
-    // ret = RegQueryValueExW( subkey, NULL, NULL, NULL, (LPBYTE)data, (LPDWORD)count );
+    if (name && name[0])
+    {
+    if ((ret = RegOpenKeyA( hkey, name, &subkey )) != ERROR_SUCCESS) return ret;
+    }
+    ret = RegQueryValueExA( subkey, NULL, NULL, NULL, (LPBYTE)data, (LPDWORD)count );
+    if (subkey != hkey) RegCloseKey( subkey );
+    if (ret == ERROR_FILE_NOT_FOUND)
+    {
+    /* return empty string if default value not found */
+    if (data) *data = 0;
+    if (count) *count = 1;
+    ret = ERROR_SUCCESS;
+    }
+    return ret;
+}
 
-    // if (subkey != hkey)
-    // {
-        // RegCloseKey( subkey );
-    // }
 
-    // if (ret == ERROR_FILE_NOT_FOUND)
-    // {
-        // /* return empty string if default value not found */
-        // if (data)
-            // *data = 0;
-        // if (count)
-            // *count = sizeof(WCHAR);
-        // ret = ERROR_SUCCESS;
-    // }
-    // return ret;
-// }
+/************************************************************************
+ *  RegQueryValueW
+ *
+ * @implemented
+ */
+LSTATUS WINAPI RegQueryValueW( HKEY hkey, LPCWSTR name, LPWSTR data, LPLONG count )
+{
+    DWORD ret;
+    HKEY subkey = hkey;
+
+    TRACE("(%p,%s,%p,%d)\n", hkey, debugstr_w(name), data, count ? *count : 0 );
+    if (hkey == NULL)
+    {
+       return ERROR_INVALID_HANDLE;
+    }
+    if (name && name[0])
+    {
+        ret = RegOpenKeyW( hkey, name, &subkey);
+        if (ret != ERROR_SUCCESS)
+        {
+            return ret;
+        }
+    }
+
+    ret = RegQueryValueExW( subkey, NULL, NULL, NULL, (LPBYTE)data, (LPDWORD)count );
+
+    if (subkey != hkey)
+    {
+        RegCloseKey( subkey );
+    }
+
+    if (ret == ERROR_FILE_NOT_FOUND)
+    {
+        /* return empty string if default value not found */
+        if (data)
+            *data = 0;
+        if (count)
+            *count = sizeof(WCHAR);
+        ret = ERROR_SUCCESS;
+    }
+    return ret;
+}

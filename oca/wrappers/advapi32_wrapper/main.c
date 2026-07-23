@@ -22,7 +22,7 @@ Revision History:
 
 extern BOOL RegInitialize(VOID);
 
-WINE_DEFAULT_DEBUG_CHANNEL(main); 
+WINE_DEFAULT_DEBUG_CHANNEL(main); 	
 
 BOOL WINAPI DllMain(HINSTANCE hInstDLL, DWORD fdwReason, LPVOID lpv)
 {

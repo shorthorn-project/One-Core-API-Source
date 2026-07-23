@@ -15,6 +15,7 @@
 15 stdcall AccessCheckByTypeResultListAndAuditAlarmByHandleA(str ptr ptr str str ptr long long long long ptr long ptr long ptr ptr ptr)
 16 stdcall AccessCheckByTypeResultListAndAuditAlarmByHandleW(wstr ptr ptr wstr wstr ptr long long long long ptr long ptr long ptr ptr ptr)
 17 stdcall AccessCheckByTypeResultListAndAuditAlarmW(wstr ptr wstr wstr ptr long long long long ptr long ptr long ptr ptr ptr)
+18 stdcall AddAccessAllowedAce(ptr long long ptr)
 19 stdcall AddAccessAllowedAceEx(ptr long long long ptr)
 20 stdcall AddAccessAllowedObjectAce(ptr long long long ptr ptr ptr)
 21 stdcall AddAccessDeniedAce(ptr long long ptr)
@@ -51,6 +52,7 @@
 52 stdcall BuildTrusteeWithSidW(ptr ptr)
 53 stdcall CancelOverlappedAccess(ptr)
 54 stdcall ChangeServiceConfig2A(long long ptr)
+55 stdcall ChangeServiceConfig2W(long long ptr)
 56 stdcall ChangeServiceConfigA(long long long long wstr str ptr str str str str)
 57 stdcall ChangeServiceConfigW(long long long long wstr wstr ptr wstr wstr wstr wstr)
 58 stdcall CheckTokenMembership(long ptr ptr)
@@ -752,60 +754,58 @@
 @ stdcall TreeSetNamedSecurityInfoW(wstr long long ptr ptr ptr ptr long)
 
 #Win7 function
-@ stdcall AddConditionalAce(ptr long long long ptr ptr long)
 @ stdcall EnableTraceEx2(int64 ptr long long int64 int64 long ptr)
 
 #Win8 functions
 @ stdcall EventSetInformation(ptr long ptr long) ntext.EtwEventSetInformation
 @ stdcall LsaLookupSids2(ptr long long ptr ptr ptr)
-@ stdcall TraceSetInformation(int64 long ptr long)
 
-#from Vista/Longhorn advapi32 (advapinew) 
-; @ stdcall AddUsersToEncryptedFileEx(long long long long)
-; @ stdcall AuditComputeEffectivePolicyBySid(ptr ptr long ptr)
-; @ stdcall AuditComputeEffectivePolicyByToken(ptr ptr long ptr)
-; @ stdcall AuditEnumerateCategories(ptr ptr)
-; @ stdcall AuditEnumeratePerUserPolicy(ptr)
-; @ stdcall AuditEnumerateSubCategories(ptr long ptr ptr)
-; @ stdcall AuditFree(ptr)
-; @ stdcall AuditLookupCategoryGuidFromCategoryId(ptr ptr)
-; @ stdcall AuditLookupCategoryIdFromCategoryGuid(ptr ptr)
-; @ stdcall AuditLookupCategoryNameA(ptr str)
-; @ stdcall AuditLookupCategoryNameW(ptr wstr)
-; @ stdcall AuditLookupSubCategoryNameA(ptr str)
-; @ stdcall AuditLookupSubCategoryNameW(ptr str)
-; @ stdcall AuditQueryPerUserPolicy(ptr ptr long ptr)
-; @ stdcall AuditQuerySecurity(long ptr)
-; @ stdcall AuditQuerySystemPolicy(ptr long ptr)
-; @ stdcall AuditSetPerUserPolicy(ptr ptr long)
-; @ stdcall AuditSetSecurity(ptr long)
-; @ stdcall AuditSetSystemPolicy(ptr long)
-; @ stdcall CheckAppInitBlockedServiceIdentity(long)
-; @ stdcall ControlServiceExA(ptr long long ptr)
-; @ stdcall ControlServiceExW(ptr long long ptr)
-; @ stdcall CredBackupCredentials(long ptr ptr long long)
-; @ stdcall CredEncryptAndMarshalBinaryBlob(long long long)
-; @ stdcall CredpConvertOneCredentialSize(long long)
-; @ stdcall CredpEncodeSecret(long ptr long long long)
-; @ stdcall CredProfileUnloaded()
-; @ stdcall CredReadByTokenHandle(long ptr long long long)
-; @ stdcall CredRestoreCredentials(ptr ptr long long)
-; @ stdcall EventAccessQuery(ptr ptr ptr)
-; @ stdcall EventAccessRemove(ptr)
-; @ stdcall FlushEfsCache(ptr)
-; @ stdcall FreeEncryptedFileMetadata(ptr)
-; @ stdcall GetEncryptedFileMetadata(wstr ptr ptr)
-; @ stdcall I_ScQueryServiceConfig(long long long)
-; @ stdcall I_ScSendPnPMessage(long long long long long)
-; @ stdcall I_ScValidatePnPService(long long long)
-; @ stdcall IsValidRelativeSecurityDescriptor(ptr long long)
-; @ stdcall LsaManageSidNameMapping(long ptr ptr)
-; @ stdcall SetEncryptedFileMetadata(wstr ptr ptr ptr long ptr)
-; @ stdcall SetUserFileEncryptionKeyEx(ptr long long ptr)
-; @ stdcall TreeSetNamedSecurityInfoA(str long long ptr ptr ptr ptr long)
-; @ stdcall TreeSetNamedSecurityInfoW(wstr long long ptr ptr ptr ptr long)
-; @ stdcall UsePinForEncryptedFilesA(long long long)
-; @ stdcall UsePinForEncryptedFilesW(long long long)
+; #from Vista/Longhorn advapi32 (advapinew) 
+; ; @ stdcall AddUsersToEncryptedFileEx(long long long long)
+; ; @ stdcall AuditComputeEffectivePolicyBySid(ptr ptr long ptr)
+; ; @ stdcall AuditComputeEffectivePolicyByToken(ptr ptr long ptr)
+; ; @ stdcall AuditEnumerateCategories(ptr ptr)
+; ; @ stdcall AuditEnumeratePerUserPolicy(ptr)
+; ; @ stdcall AuditEnumerateSubCategories(ptr long ptr ptr)
+; ; @ stdcall AuditFree(ptr)
+; ; @ stdcall AuditLookupCategoryGuidFromCategoryId(ptr ptr)
+; ; @ stdcall AuditLookupCategoryIdFromCategoryGuid(ptr ptr)
+; ; @ stdcall AuditLookupCategoryNameA(ptr str)
+; ; @ stdcall AuditLookupCategoryNameW(ptr wstr)
+; ; @ stdcall AuditLookupSubCategoryNameA(ptr str)
+; ; @ stdcall AuditLookupSubCategoryNameW(ptr str)
+; ; @ stdcall AuditQueryPerUserPolicy(ptr ptr long ptr)
+; ; @ stdcall AuditQuerySecurity(long ptr)
+; ; @ stdcall AuditQuerySystemPolicy(ptr long ptr)
+; ; @ stdcall AuditSetPerUserPolicy(ptr ptr long)
+; ; @ stdcall AuditSetSecurity(ptr long)
+; ; @ stdcall AuditSetSystemPolicy(ptr long)
+; ; @ stdcall CheckAppInitBlockedServiceIdentity(long)
+; ; @ stdcall ControlServiceExA(ptr long long ptr)
+; ; @ stdcall ControlServiceExW(ptr long long ptr)
+; ; @ stdcall CredBackupCredentials(long ptr ptr long long)
+; ; @ stdcall CredEncryptAndMarshalBinaryBlob(long long long)
+; ; @ stdcall CredpConvertOneCredentialSize(long long)
+; ; @ stdcall CredpEncodeSecret(long ptr long long long)
+; ; @ stdcall CredProfileUnloaded()
+; ; @ stdcall CredReadByTokenHandle(long ptr long long long)
+; ; @ stdcall CredRestoreCredentials(ptr ptr long long)
+; ; @ stdcall EventAccessQuery(ptr ptr ptr)
+; ; @ stdcall EventAccessRemove(ptr)
+; ; @ stdcall FlushEfsCache(ptr)
+; ; @ stdcall FreeEncryptedFileMetadata(ptr)
+; ; @ stdcall GetEncryptedFileMetadata(wstr ptr ptr)
+; ; @ stdcall I_ScQueryServiceConfig(long long long)
+; ; @ stdcall I_ScSendPnPMessage(long long long long long)
+; ; @ stdcall I_ScValidatePnPService(long long long)
+; ; @ stdcall IsValidRelativeSecurityDescriptor(ptr long long)
+; ; @ stdcall LsaManageSidNameMapping(long ptr ptr)
+; ; @ stdcall SetEncryptedFileMetadata(wstr ptr ptr ptr long ptr)
+; ; @ stdcall SetUserFileEncryptionKeyEx(ptr long long ptr)
+; ; @ stdcall TreeSetNamedSecurityInfoA(str long long ptr ptr ptr ptr long)
+; ; @ stdcall TreeSetNamedSecurityInfoW(wstr long long ptr ptr ptr ptr long)
+; ; @ stdcall UsePinForEncryptedFilesA(long long long)
+; ; @ stdcall UsePinForEncryptedFilesW(long long long)
 
 ; #Imports from wevtapibase (wevtapi from Longhorn Pre-Reset)
 ; @ stdcall EvtAssertConfig() wevtapibase.EvtIntAssertConfig
@@ -854,9 +854,32 @@
 ; @ stdcall V_SHAInit(ptr)
 ; @ stdcall V_SHAUpdate(ptr ptr long)
 
+; #Hooks
+; 87 stdcall ConvertStringSecurityDescriptorToSecurityDescriptorA(str long ptr ptr) ConvertStringSecurityDescriptorToSecurityDescriptorAInternal
+; 88 stdcall ConvertStringSecurityDescriptorToSecurityDescriptorW(wstr long ptr ptr) ConvertStringSecurityDescriptorToSecurityDescriptorWInternal
+; 89 stdcall ConvertStringSidToSidA(ptr ptr) ConvertStringSidToSidAInternal
+; 90 stdcall ConvertStringSidToSidW(ptr ptr) ConvertStringSidToSidWInternal
+; 101 stdcall CreateRestrictedToken(long long long ptr long ptr long ptr ptr) #CreateRestrictedTokenInternal
+; 105 stdcall CreateWellKnownSid(long ptr ptr ptr) CreateWellKnownSidInternal
+; 248 stdcall GetKernelObjectSecurity(long long ptr long ptr) GetKernelObjectSecurityInternal
+; 261 stdcall GetNamedSecurityInfoW(wstr long long ptr ptr ptr ptr ptr) GetNamedSecurityInfoWInternal
+; 273 stdcall GetSecurityInfo(long long long ptr ptr ptr ptr ptr) GetSecurityInfoInternal
+; 284 stdcall GetTokenInformation(ptr long ptr long ptr) GetTokenInformationInternal
+; 322 stdcall IsWellKnownSid(ptr long) IsWellKnownSidInternal
+; 429 stdcall OpenProcessToken(long long ptr) #OpenProcessTokenInternal
+; 434 stdcall OpenThreadToken(ptr long long ptr) #OpenThreadTokenInternal
+; 487 stdcall RegGetValueW(long wstr wstr long ptr ptr ptr) RegGetValueWInternal
+; 490 stdcall RegNotifyChangeKeyValue(long long long long long) RegNotifyChangeKeyValueInternal
+; 503 stdcall RegQueryValueA(long str ptr ptr) RegQueryValueAInternal
+; 504 stdcall RegQueryValueExA(long str ptr ptr ptr ptr) RegQueryValueExAInternal
+; 505 stdcall RegQueryValueExW(long wstr ptr ptr ptr ptr) RegQueryValueExWInternal
+; 506 stdcall RegQueryValueW(long wstr ptr ptr) RegQueryValueWInternal
+; 563 stdcall SetKernelObjectSecurity(long long ptr) SetKernelObjectSecurityInternal
+; 567 stdcall SetNamedSecurityInfoW(wstr long ptr ptr ptr ptr ptr) SetNamedSecurityInfoWInternal
+; 576 stdcall SetSecurityInfo(long long long ptr ptr ptr ptr) SetSecurityInfoInternal
+; 583 stdcall SetTokenInformation(ptr long ptr long) SetTokenInformationInternal
+
 #Hooks
-18 stdcall AddAccessAllowedAce(ptr long long ptr) AddAccessAllowedAceInternal
-55 stdcall ChangeServiceConfig2W(long long ptr) ChangeServiceConfig2WInternal
 87 stdcall ConvertStringSecurityDescriptorToSecurityDescriptorA(str long ptr ptr) ConvertStringSecurityDescriptorToSecurityDescriptorAInternal
 88 stdcall ConvertStringSecurityDescriptorToSecurityDescriptorW(wstr long ptr ptr) ConvertStringSecurityDescriptorToSecurityDescriptorWInternal
 89 stdcall ConvertStringSidToSidA(ptr ptr) ConvertStringSidToSidAInternal

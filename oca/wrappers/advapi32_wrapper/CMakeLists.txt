@@ -11,7 +11,6 @@ include_directories(${REACTOS_SOURCE_DIR}/sdk/lib/evtlib)
 
 spec2def(advapi32_wrapper.dll advapi32_wrapper.spec ADD_IMPORTLIB)
 
-
 set(baseaddress_advapi32_wrapper     0x6c520000)
 
 list(APPEND SOURCE
@@ -29,7 +28,6 @@ list(APPEND SOURCE
 	security.c
 	sha1.c
 	shutdown.c
-	trace.c
 	unimplemented.c
 	workarounds.c
     version.rc

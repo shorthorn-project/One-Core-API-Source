@@ -297,7 +297,6 @@ static LPWSTR SERV_dup( LPCSTR str )
     return wstr;
 }
 
-// Now includes: preliminary support for Psuedo Handles! (for Most Go applications)
 BOOL
 APIENTRY
 GetTokenInformationInternal (
@@ -314,34 +313,12 @@ GetTokenInformationInternal (
     DWORD dwReturnLength = *ReturnLength;
     int i, index=0;
 	char* ptr;
-	BOOL result = FALSE;
-	BOOL isPsuedoHandle = FALSE;
-	
-	if (TokenHandle == (HANDLE)(ULONG_PTR)-4) {
-		// GetCurrentProcessToken() is called.
-		isPsuedoHandle = TRUE;
-		if (!OpenProcessToken(GetCurrentProcess(), TOKEN_QUERY | TOKEN_QUERY_SOURCE, &TokenHandle))
-			return FALSE;
-	} else if (TokenHandle == (HANDLE)(ULONG_PTR)-5) {
-		// GetCurrentThreadToken() is called.
-		isPsuedoHandle = TRUE;
-		if (!OpenThreadToken(GetCurrentProcess(), TOKEN_QUERY | TOKEN_QUERY_SOURCE, TRUE, &TokenHandle))
-			return FALSE;
-	} else if (TokenHandle == (HANDLE)(ULONG_PTR)-6) {
-		// GetCurrentThreadEffectiveToken() is called.
-		isPsuedoHandle = TRUE;
-		if (!OpenThreadToken(GetCurrentProcess(), TOKEN_QUERY | TOKEN_QUERY_SOURCE, TRUE, &TokenHandle)) {
-			if (GetLastError() != ERROR_NO_TOKEN || !OpenProcessToken(GetCurrentProcess(), TOKEN_QUERY | TOKEN_QUERY_SOURCE, &TokenHandle))
-				return FALSE;
-		}
-	}
-	
+    // 
     if(TokenInformationClass == TokenLogonSid){
 		if (TokenInformationLength == 0) { // Chrome 98+ sandbox needs this.
 			*ReturnLength = sizeof(TOKEN_GROUPS) + sizeof(PVOID) + sizeof(DWORD) + SECURITY_MAX_SID_SIZE;
-			goto cleanup;
+			return FALSE;
 		}		
-		
         Status = NtQueryInformationToken(TokenHandle,
                                          TokenGroups,
                                          0,
@@ -360,7 +337,7 @@ GetTokenInformationInternal (
 		if (Status != 0) {
 				RtlFreeHeap(RtlGetProcessHeap(), 0, GroupBuffer);
 				RtlSetLastWin32ErrorAndNtStatusFromNtStatus(Status);
-				goto cleanup;
+				return FALSE;
 		}		
 		
         // Return it.
@@ -386,25 +363,21 @@ GetTokenInformationInternal (
 		*ReturnLength = sizeof(TOKEN_GROUPS) + sizeof(PVOID) + sizeof(DWORD) + SECURITY_MAX_SID_SIZE;
         // Free temp buffer.
         RtlFreeHeap(RtlGetProcessHeap(), 0, GroupBuffer);
-		result = TRUE;
-		goto cleanup;
+        return TRUE;
     }
 	
-    if(TokenInformationClass == TokenAppContainerSid){
-        //Firefox 153 and higher needs this.
-        *ReturnLength = sizeof(TOKEN_APPCONTAINER_INFORMATION);
-        if(TokenInformationLength < sizeof(TOKEN_APPCONTAINER_INFORMATION))
-			goto cleanup;
-        ((PTOKEN_APPCONTAINER_INFORMATION)TokenInformation)->TokenAppContainer = NULL;
-        result = TRUE;
-		goto cleanup;
-    }
+	if(TokenInformationClass == TokenAppContainerSid ){
+        *ReturnLength = sizeof(PSID);
+        if(TokenInformationLength < sizeof(PSID))
+           return FALSE;
+        TokenInformation = NULL;
+        return TRUE;
+	}
 	
 	if(TokenInformationClass == TokenElevationType ){
-		(PULONG)TokenInformation = (PVOID)2;
+		TokenInformation = (PVOID)2;
 		TokenInformationLength = sizeof(ULONG);
-		result = TRUE;
-		goto cleanup;
+		return TRUE;
 	}	
 	
     if(TokenInformationClass == TokenIntegrityLevel || 
@@ -423,11 +396,11 @@ GetTokenInformationInternal (
         {
             //DbgPrint("GetTokenInformationInternal:: NtQueryInformationToken returned Status: 0x%08lx\n", Status);
             SetLastError(RtlNtStatusToDosError(Status));
-            goto cleanup;
+            return FALSE;
         }
         
-        result = TRUE;
-		goto cleanup;
+        
+        return TRUE;
     }
 
     Status = NtQueryInformationToken(TokenHandle,
@@ -438,15 +411,10 @@ GetTokenInformationInternal (
     if (!NT_SUCCESS(Status))
     {
         SetLastError(RtlNtStatusToDosError(Status));
-        goto cleanup;
+        return FALSE;
     }
-	
-	result = TRUE;
-cleanup:
-	if (isPsuedoHandle)
-		CloseHandle(TokenHandle);
-	
-	return result;
+
+    return TRUE;
 }
 
 BOOL
@@ -459,11 +427,6 @@ SetTokenInformationInternal (
     )
 { 
     NTSTATUS Status;
-	
-	if (TokenHandle == ((HANDLE)(ULONG_PTR)-4) || TokenHandle == ((HANDLE)(ULONG_PTR)-5) || TokenHandle == ((HANDLE)(ULONG_PTR)-6)) {
-		DbgPrint("SetTokenInformationInternal:: unsupported on Win8 pseudo-handle functions. Unexpected behavior can happen... returning TRUE.");
-		return TRUE;
-	}
 	
     if(TokenInformationClass == TokenIntegrityLevel || 
        TokenInformationClass == TokenElevationType || 
@@ -1160,51 +1123,4 @@ LSTATUS WINAPI RegQueryValueAInternal(
     *lpcbData = need;
 
     return ERROR_SUCCESS;
-}
-
-BOOL WINAPI AddAccessAllowedAceInternal(PACL pAcl, DWORD dwAceRevision, DWORD AccessMask, PSID pSid) {
-    BOOL result = AddAccessAllowedAce(pAcl, dwAceRevision, AccessMask, pSid);
-    
-	if (!result && GetLastError() == ERROR_INVALID_SID) {
-        TRACE("AddAccessAllowedAceInternal:: error is ERROR_INVALID_SID, returning true for firefox 153 compatibility.\n");
-        return TRUE;
-    }
-
-    return result;
-}
-
-BOOL WINAPI ChangeServiceConfig2WInternal(SC_HANDLE hService, DWORD dwInfoLevel, LPVOID lpInfo) {
-    BOOL result;
-    
-    // First try the regular API and see if it has unsupported flags.
-    if ((result = ChangeServiceConfig2W(hService, dwInfoLevel, lpInfo)) || GetLastError() != ERROR_NOT_SUPPORTED)
-        return result;
-    
-    // Then it is a flag that is not supported on XP. We'll just stub all of them for now.
-    switch (dwInfoLevel) {
-        case SERVICE_CONFIG_FAILURE_ACTIONS_FLAG:
-            TRACE("ChangeServiceConfig2W SERVICE_CONFIG_FAILURE_ACTIONS_FLAG\n");
-            return TRUE;
-        case SERVICE_CONFIG_DELAYED_AUTO_START_INFO:
-            TRACE("ChangeServiceConfig2W SERVICE_CONFIG_DELAYED_AUTO_START_INFO\n");
-            return TRUE;
-        case SERVICE_CONFIG_SERVICE_SID_INFO:
-            TRACE("ChangeServiceConfig2W SERVICE_CONFIG_SERVICE_SID_INFO\n");
-            return TRUE;
-        case SERVICE_CONFIG_REQUIRED_PRIVILEGES_INFO:
-            TRACE("ChangeServiceConfig2W SERVICE_CONFIG_REQUIRED_PRIVILEGES_INFO\n");
-            return TRUE;
-        case SERVICE_CONFIG_PRESHUTDOWN_INFO:
-            TRACE("ChangeServiceConfig2W SERVICE_PRESHUTDOWN_INFO\n");
-            return TRUE;
-        case SERVICE_CONFIG_PREFERRED_NODE:
-            TRACE("ChangeServiceConfig2W SERVICE_CONFIG_PREFERRED_NODE\n");
-            return TRUE;
-        case SERVICE_CONFIG_LAUNCH_PROTECTED:
-            TRACE("ChangeServiceConfig2W SERVICE_CONFIG_LAUNCH_PROTECTED\n");
-            return TRUE;
-    }
-
-    TRACE("ChangeServiceConfig2W UNSUPPORTED %i\n", dwInfoLevel);
-    return FALSE;
 }

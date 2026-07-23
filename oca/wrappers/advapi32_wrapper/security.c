@@ -19,13 +19,8 @@ Revision History:
 --*/
 
 #include "main.h"
-#include "sddl.h"
 
-WINE_DEFAULT_DEBUG_CHANNEL(security); 
-
-/******************************************************************************
- * SID functions
- ******************************************************************************/
+WINE_DEFAULT_DEBUG_CHANNEL(security);
 
 typedef struct _MAX_SID
 {
@@ -94,11 +89,11 @@ static const WELLKNOWNSID WellKnownSids[] =
     { WinBuiltinAuthorizationAccessSid, { SID_REVISION, 2, { SECURITY_NT_AUTHORITY }, { SECURITY_BUILTIN_DOMAIN_RID, DOMAIN_ALIAS_RID_AUTHORIZATIONACCESS } } },
     { WinBuiltinTerminalServerLicenseServersSid, { SID_REVISION, 2, { SECURITY_NT_AUTHORITY }, { SECURITY_BUILTIN_DOMAIN_RID, DOMAIN_ALIAS_RID_TS_LICENSE_SERVERS } } },
     { WinBuiltinDCOMUsersSid, { SID_REVISION, 2, { SECURITY_NT_AUTHORITY }, { SECURITY_BUILTIN_DOMAIN_RID, DOMAIN_ALIAS_RID_DCOM_USERS } } },
-    { WinLowLabelSid, { SID_REVISION, 1, { SECURITY_LOCAL_SID_AUTHORITY}, { SECURITY_LOCAL_RID} } },
-    { WinMediumLabelSid, { SID_REVISION, 1, { SECURITY_LOCAL_SID_AUTHORITY}, { SECURITY_LOCAL_RID } } },
-    { WinHighLabelSid, { SID_REVISION, 1, { SECURITY_LOCAL_SID_AUTHORITY}, { SECURITY_LOCAL_RID } } },
-    { WinSystemLabelSid, { SID_REVISION, 1, { SECURITY_LOCAL_SID_AUTHORITY}, { SECURITY_LOCAL_RID } } },
-    { WinBuiltinAnyPackageSid, { SID_REVISION, 2, { SECURITY_LOCAL_SID_AUTHORITY }, { SECURITY_LOCAL_RID, SECURITY_LOCAL_RID } } },
+    // { WinLowLabelSid, { SID_REVISION, 1, { SECURITY_LOCAL_SID_AUTHORITY}, { SECURITY_LOCAL_RID} } },
+    // { WinMediumLabelSid, { SID_REVISION, 1, { SECURITY_LOCAL_SID_AUTHORITY}, { SECURITY_LOCAL_RID } } },
+    // { WinHighLabelSid, { SID_REVISION, 1, { SECURITY_LOCAL_SID_AUTHORITY}, { SECURITY_LOCAL_RID } } },
+    // { WinSystemLabelSid, { SID_REVISION, 1, { SECURITY_LOCAL_SID_AUTHORITY}, { SECURITY_LOCAL_RID } } },
+    // { WinBuiltinAnyPackageSid, { SID_REVISION, 2, { SECURITY_LOCAL_SID_AUTHORITY }, { SECURITY_LOCAL_RID, SECURITY_LOCAL_RID } } },
 };
 
 /* these SIDs must be constructed as relative to some domain - only the RID is well-known */
@@ -125,56 +120,70 @@ static const WELLKNOWNRID WellKnownRids[] =
     { WinAccountRasAndIasServersSid, DOMAIN_ALIAS_RID_RAS_SERVERS },
 };
 
-// This filter exists because Winamp breaks access to its local database by attempting to use Vista integrity levels.
-// Just check if the executable is 'winamp.exe' and deny the filter otherwise.
-static BOOL WinampFilter(const WCHAR** string_ptr) {
-	if (GetModuleHandleW(L"winamp.exe"))
-		return TRUE;
-	
-	return FALSE;
-}
-
 static const struct
 {
     WCHAR str[3];
     DWORD value;
-	BOOL (*filter) (const WCHAR**);
 }
 ace_rights[] =
 {
-    { L"GA", GENERIC_ALL, NULL },
-    { L"GR", GENERIC_READ, NULL },
-    { L"GW", GENERIC_WRITE, NULL },
-    { L"GX", GENERIC_EXECUTE, NULL },
+    { L"GA", GENERIC_ALL },
+    { L"GR", GENERIC_READ },
+    { L"GW", GENERIC_WRITE },
+    { L"GX", GENERIC_EXECUTE },
 
-    { L"RC", READ_CONTROL, NULL },
-    { L"SD", DELETE, NULL },
-    { L"WD", WRITE_DAC, NULL },
-    { L"WO", WRITE_OWNER, NULL },
+    { L"RC", READ_CONTROL },
+    { L"SD", DELETE },
+    { L"WD", WRITE_DAC },
+    { L"WO", WRITE_OWNER },
 
-    { L"RP", ADS_RIGHT_DS_READ_PROP, NULL },
-    { L"WP", ADS_RIGHT_DS_WRITE_PROP, NULL },
-    { L"CC", ADS_RIGHT_DS_CREATE_CHILD, NULL },
-    { L"DC", ADS_RIGHT_DS_DELETE_CHILD, NULL },
-    { L"LC", ADS_RIGHT_ACTRL_DS_LIST, NULL },
+    { L"RP", ADS_RIGHT_DS_READ_PROP },
+    { L"WP", ADS_RIGHT_DS_WRITE_PROP },
+    { L"CC", ADS_RIGHT_DS_CREATE_CHILD },
+    { L"DC", ADS_RIGHT_DS_DELETE_CHILD },
+    { L"LC", ADS_RIGHT_ACTRL_DS_LIST },
     { L"SW", ADS_RIGHT_DS_SELF },
-    { L"LO", ADS_RIGHT_DS_LIST_OBJECT, NULL },
-    { L"DT", ADS_RIGHT_DS_DELETE_TREE, NULL },
-    { L"CR", ADS_RIGHT_DS_CONTROL_ACCESS, NULL },
+    { L"LO", ADS_RIGHT_DS_LIST_OBJECT },
+    { L"DT", ADS_RIGHT_DS_DELETE_TREE },
+    { L"CR", ADS_RIGHT_DS_CONTROL_ACCESS },
 
-    { L"FA", FILE_ALL_ACCESS, NULL },
-    { L"FR", FILE_GENERIC_READ, NULL },
-    { L"FW", FILE_GENERIC_WRITE, NULL },
-    { L"FX", FILE_GENERIC_EXECUTE, NULL },
+    { L"FA", FILE_ALL_ACCESS },
+    { L"FR", FILE_GENERIC_READ },
+    { L"FW", FILE_GENERIC_WRITE },
+    { L"FX", FILE_GENERIC_EXECUTE },
 
-    { L"KA", KEY_ALL_ACCESS, NULL },
-    { L"KR", KEY_READ, NULL },
-    { L"KW", KEY_WRITE, NULL },
-    { L"KX", KEY_EXECUTE, NULL },
+    { L"KA", KEY_ALL_ACCESS },
+    { L"KR", KEY_READ },
+    { L"KW", KEY_WRITE },
+    { L"KX", KEY_EXECUTE },
 
-    { L"NR", FILE_GENERIC_READ, NULL },
-    { L"NW", WRITE_OWNER, &WinampFilter },
-    { L"NX", GENERIC_ALL, &WinampFilter },
+    // { L"NR", GENERIC_ALL },
+    // { L"NW", GENERIC_ALL },
+    // { L"NX", GENERIC_ALL },
+};
+
+/* these SIDs must be constructed as relative to some domain - only the RID is well-known */
+static const struct
+{
+    WCHAR str[2];
+    WELL_KNOWN_SID_TYPE type;
+    DWORD rid;
+}
+well_known_rids[] =
+{
+    { {'L','A'}, WinAccountAdministratorSid,    DOMAIN_USER_RID_ADMIN },
+    { {'L','G'}, WinAccountGuestSid,            DOMAIN_USER_RID_GUEST },
+    { {0,0},     WinAccountKrbtgtSid,           DOMAIN_USER_RID_KRBTGT },
+    { {'D','A'}, WinAccountDomainAdminsSid,     DOMAIN_GROUP_RID_ADMINS },
+    { {'D','U'}, WinAccountDomainUsersSid,      DOMAIN_GROUP_RID_USERS },
+    { {'D','G'}, WinAccountDomainGuestsSid,     DOMAIN_GROUP_RID_GUESTS },
+    { {'D','C'}, WinAccountComputersSid,        DOMAIN_GROUP_RID_COMPUTERS },
+    { {'D','D'}, WinAccountControllersSid,      DOMAIN_GROUP_RID_CONTROLLERS },
+    { {'C','A'}, WinAccountCertAdminsSid,       DOMAIN_GROUP_RID_CERT_ADMINS },
+    { {'S','A'}, WinAccountSchemaAdminsSid,     DOMAIN_GROUP_RID_SCHEMA_ADMINS },
+    { {'E','A'}, WinAccountEnterpriseAdminsSid, DOMAIN_GROUP_RID_ENTERPRISE_ADMINS },
+    { {'P','A'}, WinAccountPolicyAdminsSid,     DOMAIN_GROUP_RID_POLICY_ADMINS },
+    { {'R','S'}, WinAccountRasAndIasServersSid, DOMAIN_ALIAS_RID_RAS_SERVERS },
 };
 
 struct max_sid
@@ -244,36 +253,63 @@ well_known_sids[] =
     { {0,0}, WinBuiltinAuthorizationAccessSid, { SID_REVISION, 2, { SECURITY_NT_AUTHORITY }, { SECURITY_BUILTIN_DOMAIN_RID, DOMAIN_ALIAS_RID_AUTHORIZATIONACCESS } } },
     { {0,0}, WinBuiltinTerminalServerLicenseServersSid, { SID_REVISION, 2, { SECURITY_NT_AUTHORITY }, { SECURITY_BUILTIN_DOMAIN_RID, DOMAIN_ALIAS_RID_TS_LICENSE_SERVERS } } },
     { {0,0}, WinBuiltinDCOMUsersSid, { SID_REVISION, 2, { SECURITY_NT_AUTHORITY }, { SECURITY_BUILTIN_DOMAIN_RID, DOMAIN_ALIAS_RID_DCOM_USERS } } },
-    { {'L','W'}, WinLowLabelSid, { SID_REVISION, 1, { SECURITY_MANDATORY_LABEL_AUTHORITY}, { SECURITY_MANDATORY_LOW_RID} } },
-    { {'M','E'}, WinMediumLabelSid, { SID_REVISION, 1, { SECURITY_MANDATORY_LABEL_AUTHORITY}, { SECURITY_MANDATORY_MEDIUM_RID } } },
-    { {'H','I'}, WinHighLabelSid, { SID_REVISION, 1, { SECURITY_MANDATORY_LABEL_AUTHORITY}, { SECURITY_MANDATORY_HIGH_RID } } },
-    { {'S','I'}, WinSystemLabelSid, { SID_REVISION, 1, { SECURITY_MANDATORY_LABEL_AUTHORITY}, { SECURITY_MANDATORY_SYSTEM_RID } } },
-    { {'A','C'}, WinBuiltinAnyPackageSid, { SID_REVISION, 2, { SECURITY_APP_PACKAGE_AUTHORITY }, { SECURITY_APP_PACKAGE_BASE_RID, SECURITY_BUILTIN_PACKAGE_ANY_PACKAGE } } },
+    // { {'L','W'}, WinWorldSid, { SID_REVISION, 1, { SECURITY_WORLD_SID_AUTHORITY }, { SECURITY_WORLD_RID } } },
+    // { {'M','E'}, WinWorldSid, { SID_REVISION, 1, { SECURITY_WORLD_SID_AUTHORITY }, { SECURITY_WORLD_RID } } },
+    // { {'H','I'}, WinWorldSid, { SID_REVISION, 1, { SECURITY_WORLD_SID_AUTHORITY }, { SECURITY_WORLD_RID } } },
+    // { {'S','I'}, WinWorldSid, { SID_REVISION, 1, { SECURITY_WORLD_SID_AUTHORITY }, { SECURITY_WORLD_RID } } },
+    // { {'A','C'}, WinWorldSid, { SID_REVISION, 1, { SECURITY_WORLD_SID_AUTHORITY }, { SECURITY_WORLD_RID } } },
 };
 
-/* these SIDs must be constructed as relative to some domain - only the RID is well-known */
-static const struct
+const char * debugstr_sid(PSID sid)
 {
-    WCHAR str[2];
-    WELL_KNOWN_SID_TYPE type;
-    DWORD rid;
+    int auth = 0;
+    SID * psid = sid;
+
+    if (psid == NULL)
+        return "(null)";
+
+    auth = psid->IdentifierAuthority.Value[5] +
+           (psid->IdentifierAuthority.Value[4] << 8) +
+           (psid->IdentifierAuthority.Value[3] << 16) +
+           (psid->IdentifierAuthority.Value[2] << 24);
+
+    switch (psid->SubAuthorityCount) {
+    case 0:
+        return wine_dbg_sprintf("S-%d-%d", psid->Revision, auth);
+    case 1:
+        return wine_dbg_sprintf("S-%d-%d-%lu", psid->Revision, auth,
+            psid->SubAuthority[0]);
+    case 2:
+        return wine_dbg_sprintf("S-%d-%d-%lu-%lu", psid->Revision, auth,
+            psid->SubAuthority[0], psid->SubAuthority[1]);
+    case 3:
+        return wine_dbg_sprintf("S-%d-%d-%lu-%lu-%lu", psid->Revision, auth,
+            psid->SubAuthority[0], psid->SubAuthority[1], psid->SubAuthority[2]);
+    case 4:
+        return wine_dbg_sprintf("S-%d-%d-%lu-%lu-%lu-%lu", psid->Revision, auth,
+            psid->SubAuthority[0], psid->SubAuthority[1], psid->SubAuthority[2],
+            psid->SubAuthority[3]);
+    case 5:
+        return wine_dbg_sprintf("S-%d-%d-%lu-%lu-%lu-%lu-%lu", psid->Revision, auth,
+            psid->SubAuthority[0], psid->SubAuthority[1], psid->SubAuthority[2],
+            psid->SubAuthority[3], psid->SubAuthority[4]);
+    case 6:
+        return wine_dbg_sprintf("S-%d-%d-%lu-%lu-%lu-%lu-%lu-%lu", psid->Revision, auth,
+            psid->SubAuthority[3], psid->SubAuthority[1], psid->SubAuthority[2],
+            psid->SubAuthority[0], psid->SubAuthority[4], psid->SubAuthority[5]);
+    case 7:
+        return wine_dbg_sprintf("S-%d-%d-%lu-%lu-%lu-%lu-%lu-%lu-%lu", psid->Revision, auth,
+            psid->SubAuthority[0], psid->SubAuthority[1], psid->SubAuthority[2],
+            psid->SubAuthority[3], psid->SubAuthority[4], psid->SubAuthority[5],
+            psid->SubAuthority[6]);
+    case 8:
+        return wine_dbg_sprintf("S-%d-%d-%lu-%lu-%lu-%lu-%lu-%lu-%lu-%lu", psid->Revision, auth,
+            psid->SubAuthority[0], psid->SubAuthority[1], psid->SubAuthority[2],
+            psid->SubAuthority[3], psid->SubAuthority[4], psid->SubAuthority[5],
+            psid->SubAuthority[6], psid->SubAuthority[7]);
+    }
+    return "(too-big)";
 }
-well_known_rids[] =
-{
-    { {'L','A'}, WinAccountAdministratorSid,    DOMAIN_USER_RID_ADMIN },
-    { {'L','G'}, WinAccountGuestSid,            DOMAIN_USER_RID_GUEST },
-    { {0,0},     WinAccountKrbtgtSid,           DOMAIN_USER_RID_KRBTGT },
-    { {'D','A'}, WinAccountDomainAdminsSid,     DOMAIN_GROUP_RID_ADMINS },
-    { {'D','U'}, WinAccountDomainUsersSid,      DOMAIN_GROUP_RID_USERS },
-    { {'D','G'}, WinAccountDomainGuestsSid,     DOMAIN_GROUP_RID_GUESTS },
-    { {'D','C'}, WinAccountComputersSid,        DOMAIN_GROUP_RID_COMPUTERS },
-    { {'D','D'}, WinAccountControllersSid,      DOMAIN_GROUP_RID_CONTROLLERS },
-    { {'C','A'}, WinAccountCertAdminsSid,       DOMAIN_GROUP_RID_CERT_ADMINS },
-    { {'S','A'}, WinAccountSchemaAdminsSid,     DOMAIN_GROUP_RID_SCHEMA_ADMINS },
-    { {'E','A'}, WinAccountEnterpriseAdminsSid, DOMAIN_GROUP_RID_ENTERPRISE_ADMINS },
-    { {'P','A'}, WinAccountPolicyAdminsSid,     DOMAIN_GROUP_RID_POLICY_ADMINS },
-    { {'R','S'}, WinAccountRasAndIasServersSid, DOMAIN_ALIAS_RID_RAS_SERVERS },
-};
 
 static BOOL parse_token( const WCHAR *string, const WCHAR **end, DWORD *result )
 {
@@ -372,9 +408,6 @@ static DWORD parse_ace_right( const WCHAR **string_ptr )
     {
         if (!wcsncmp( string, ace_rights[i].str, 2 ))
         {
-			if (ace_rights[i].filter && ace_rights[i].filter(string_ptr)) // Added to support IE9 and Winamp at the same time.
-				return 0;
-			
             *string_ptr += 2;
             return ace_rights[i].value;
         }
@@ -558,7 +591,7 @@ static BYTE parse_ace_type( const WCHAR **string_ptr )
         { L"AU", SYSTEM_AUDIT_ACE_TYPE },
         { L"A",  ACCESS_ALLOWED_ACE_TYPE },
         { L"D",  ACCESS_DENIED_ACE_TYPE },
-        { L"ML", SYSTEM_MANDATORY_LABEL_ACE_TYPE },
+        { L"ML", ACCESS_ALLOWED_ACE_TYPE },
         /*
         { ACCESS_ALLOWED_OBJECT_ACE_TYPE },
         { ACCESS_DENIED_OBJECT_ACE_TYPE },
@@ -868,56 +901,9 @@ out:
     return ret;
 }
 
-const char * debugstr_sid(PSID sid)
-{
-    int auth = 0;
-    SID * psid = sid;
-
-    if (psid == NULL)
-        return "(null)";
-
-    auth = psid->IdentifierAuthority.Value[5] +
-           (psid->IdentifierAuthority.Value[4] << 8) +
-           (psid->IdentifierAuthority.Value[3] << 16) +
-           (psid->IdentifierAuthority.Value[2] << 24);
-
-    switch (psid->SubAuthorityCount) {
-    case 0:
-        return wine_dbg_sprintf("S-%d-%d", psid->Revision, auth);
-    case 1:
-        return wine_dbg_sprintf("S-%d-%d-%lu", psid->Revision, auth,
-            psid->SubAuthority[0]);
-    case 2:
-        return wine_dbg_sprintf("S-%d-%d-%lu-%lu", psid->Revision, auth,
-            psid->SubAuthority[0], psid->SubAuthority[1]);
-    case 3:
-        return wine_dbg_sprintf("S-%d-%d-%lu-%lu-%lu", psid->Revision, auth,
-            psid->SubAuthority[0], psid->SubAuthority[1], psid->SubAuthority[2]);
-    case 4:
-        return wine_dbg_sprintf("S-%d-%d-%lu-%lu-%lu-%lu", psid->Revision, auth,
-            psid->SubAuthority[0], psid->SubAuthority[1], psid->SubAuthority[2],
-            psid->SubAuthority[3]);
-    case 5:
-        return wine_dbg_sprintf("S-%d-%d-%lu-%lu-%lu-%lu-%lu", psid->Revision, auth,
-            psid->SubAuthority[0], psid->SubAuthority[1], psid->SubAuthority[2],
-            psid->SubAuthority[3], psid->SubAuthority[4]);
-    case 6:
-        return wine_dbg_sprintf("S-%d-%d-%lu-%lu-%lu-%lu-%lu-%lu", psid->Revision, auth,
-            psid->SubAuthority[3], psid->SubAuthority[1], psid->SubAuthority[2],
-            psid->SubAuthority[0], psid->SubAuthority[4], psid->SubAuthority[5]);
-    case 7:
-        return wine_dbg_sprintf("S-%d-%d-%lu-%lu-%lu-%lu-%lu-%lu-%lu", psid->Revision, auth,
-            psid->SubAuthority[0], psid->SubAuthority[1], psid->SubAuthority[2],
-            psid->SubAuthority[3], psid->SubAuthority[4], psid->SubAuthority[5],
-            psid->SubAuthority[6]);
-    case 8:
-        return wine_dbg_sprintf("S-%d-%d-%lu-%lu-%lu-%lu-%lu-%lu-%lu-%lu", psid->Revision, auth,
-            psid->SubAuthority[0], psid->SubAuthority[1], psid->SubAuthority[2],
-            psid->SubAuthority[3], psid->SubAuthority[4], psid->SubAuthority[5],
-            psid->SubAuthority[6], psid->SubAuthority[7]);
-    }
-    return "(too-big)";
-}
+/******************************************************************************
+ * SID functions
+ ****************************************************************************/
 
 BOOL 
 WINAPI 
@@ -929,28 +915,28 @@ AddMandatoryAce(
 	PSID pLabelSid
 )
 {
-	NTSTATUS Status; // eax@1
-	BOOL result; // eax@2
+    NTSTATUS Status; // eax@1
+    BOOL result; // eax@2
   
-	if(pAddMandatoryAce){
+    if(pAddMandatoryAce){
 		return pAddMandatoryAce(pAcl, dwAceRevision, AceFlags, MandatoryPolicy, pLabelSid);
-    }  
+    } 
 
-	Status = RtlAddMandatoryAce(pAcl, 
+    Status = RtlAddMandatoryAce(pAcl, 
 							  dwAceRevision, 
 							  AceFlags, 
 							  MandatoryPolicy, 
 							  SYSTEM_MANDATORY_LABEL_ACE_TYPE, 
 							  pLabelSid);
-	if ( !NT_SUCCESS(Status))
-	{
-		result = FALSE;
-	}
-	else
-	{
-		result = TRUE;
-	}
-	return result;
+    if ( !NT_SUCCESS(Status))
+    {
+        result = FALSE;
+    }
+    else
+    {
+        result = TRUE;
+    }
+    return result;
 }
 
 /*
@@ -1100,7 +1086,8 @@ ConvertStringSecurityDescriptorToSecurityDescriptorWImpl(
     {
         SetLastError(ERROR_INVALID_PARAMETER);
         return FALSE;
-    }if (revision != SID_REVISION)
+    }
+    if (revision != SID_REVISION)
     {
         SetLastError(ERROR_UNKNOWN_REVISION);
         return FALSE;
@@ -1177,72 +1164,4 @@ BOOL WINAPI IsWellKnownSidImpl( PSID sid, WELL_KNOWN_SID_TYPE type )
                 return TRUE;
 
     return FALSE;
-}
-
-BOOL
-WINAPI
-AddConditionalAce(
-    PACL pAcl,
-    DWORD dwAceRevision,
-    DWORD AceFlags,
-    ACCESS_MASK AccessMask,
-    PSID pSid,
-    PVOID pCondition,
-    DWORD cbCondition
-)
-{
-    DWORD cbSid;
-    DWORD cbAce;
-    PBYTE pAce;
-    ACCESS_ALLOWED_CALLBACK_ACE *pCallbackAce;
-
-    if (!pAcl || !pSid)
-        return FALSE;
-
-    cbSid = GetLengthSid(pSid);
-
-    /* tamanho total da ACE */
-    cbAce = sizeof(ACCESS_ALLOWED_CALLBACK_ACE) - sizeof(DWORD) +
-            cbSid + cbCondition;
-
-    /* aloca buffer */
-    pAce = (PBYTE)HeapAlloc(GetProcessHeap(), 0, cbAce);
-    if (!pAce)
-        return FALSE;
-
-    /* zera */
-    ZeroMemory(pAce, cbAce);
-
-    pCallbackAce = (ACCESS_ALLOWED_CALLBACK_ACE *)pAce;
-
-    /* header */
-    pCallbackAce->Header.AceType  = ACCESS_ALLOWED_CALLBACK_ACE_TYPE;
-    pCallbackAce->Header.AceFlags = (BYTE)AceFlags;
-    pCallbackAce->Header.AceSize  = (WORD)cbAce;
-
-    /* máscara */
-    pCallbackAce->Mask = AccessMask;
-
-    /* copia SID */
-    CopySid(cbSid, &pCallbackAce->SidStart, pSid);
-
-    /* copia condição logo após SID */
-    if (cbCondition > 0 && pCondition)
-    {
-        PBYTE pCondDst;
-
-        pCondDst = (PBYTE)&pCallbackAce->SidStart + cbSid;
-
-        CopyMemory(pCondDst, pCondition, cbCondition);
-    }
-
-    /* adiciona ACE na ACL */
-    if (!AddAce(pAcl, dwAceRevision, MAXDWORD, pAce, cbAce))
-    {
-        HeapFree(GetProcessHeap(), 0, pAce);
-        return FALSE;
-    }
-
-    HeapFree(GetProcessHeap(), 0, pAce);
-    return TRUE;
 }
