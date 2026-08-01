@@ -9,8 +9,11 @@ set(baseaddress_shcore 0x72000000)
 spec2def(shcore.dll shcore.spec ADD_IMPORTLIB)
 
 list(APPEND SOURCE
+    dpi.c
     istream.c
     main.c
+    misc.c
+    sysparams.c
 	shcore.rc
     ${CMAKE_CURRENT_BINARY_DIR}/shcore_stubs.c
     ${CMAKE_CURRENT_BINARY_DIR}/shcore.def)
