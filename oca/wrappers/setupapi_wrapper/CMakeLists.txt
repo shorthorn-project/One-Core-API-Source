@@ -5,6 +5,7 @@ spec2def(setupapi_wrapper.dll setupapi_wrapper.spec)
 
 list(APPEND SOURCE
     devinst.c
+    forwards.c
     hooks.c
 	query.c
     version.rc

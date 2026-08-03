@@ -21,16 +21,46 @@
 #include "setupapi_private.h"
 
 WINE_DEFAULT_DEBUG_CHANNEL(setupapi); 
+
+HMODULE hSetupBase;
+
+typedef BOOL (WINAPI *PfnSetupGetInfDriverStoreLocationW)(
+    PCWSTR FileName,
+    PSP_ALTPLATFORM_INFO AlternativePlatformInfo,
+    PCWSTR LocaleName,
+    PWSTR ReturnBuffer,
+    DWORD ReturnBufferSize,
+    PDWORD RequiredSize
+);
  
 /***********************************************************************
  *      SetupGetInfDriverStoreLocationW (SETUPAPI.@)
  */
 BOOL WINAPI SetupGetInfDriverStoreLocationW(
-    PCWSTR FileName, PSP_ALTPLATFORM_INFO AlternativePlatformInfo,
-    PCWSTR LocaleName, PWSTR ReturnBuffer, DWORD ReturnBufferSize,
+    PCWSTR FileName, 
+	PSP_ALTPLATFORM_INFO AlternativePlatformInfo,
+    PCWSTR LocaleName, 
+	PWSTR ReturnBuffer, 
+	DWORD ReturnBufferSize,
     PDWORD RequiredSize)
 {
+	PfnSetupGetInfDriverStoreLocationW pSetupGetInfDriverStoreLocationW;
     FIXME("stub: %s %p %s %p %u %p\n", debugstr_w(FileName), AlternativePlatformInfo, debugstr_w(LocaleName), ReturnBuffer, ReturnBufferSize, RequiredSize);
+
+	hSetupBase = GetModuleHandleW(L"setupapibase.dll");
+	if (!hSetupBase)
+		hSetupBase = LoadLibraryW(L"setupapibase.dll");
+
+	pSetupGetInfDriverStoreLocationW = (PfnSetupGetInfDriverStoreLocationW)GetProcAddress(hSetupBase, "SetupDiGetDevicePropertyW");
+	
+	if(pSetupGetInfDriverStoreLocationW){
+		return pSetupGetInfDriverStoreLocationW(FileName, 
+												AlternativePlatformInfo, 
+												LocaleName, 
+												ReturnBuffer,
+												ReturnBufferSize, 
+												RequiredSize);
+	}
 
     SetLastError(ERROR_CALL_NOT_IMPLEMENTED);
     return FALSE;
