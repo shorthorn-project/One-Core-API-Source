@@ -28,14 +28,35 @@ typedef interface IUnknown IActivationFilter;
 
 IActivationFilter globalActivationFilter = {0};
 
-HRESULT 
-WINAPI
-CoDisconnectContext(
-  _In_ DWORD dwTimeout
-)
+typedef HRESULT (WINAPI *PFNCoDisconnectContext)(DWORD);
+typedef HRESULT (WINAPI *PFNCoGetActivationState)(GUID, DWORD, DWORD *);
+typedef HRESULT (WINAPI *PFNCoGetCallState)(int, PULONG);
+typedef HRESULT (WINAPI *PFNCoRegisterActivationFilter)(IActivationFilter*);
+
+HRESULT WINAPI CoDisconnectContext(DWORD dwTimeout)
 {
-	DbgPrint("CoDisconnectContext called\n");
-	return S_OK;
+    static HMODULE hOleBase = NULL;
+    PFNCoDisconnectContext pCoDisconnectContext;
+
+    DbgPrint("CoDisconnectContext called\n");
+
+    if (!hOleBase)
+    {
+        hOleBase = GetModuleHandleW(L"olebase.dll");
+        if (!hOleBase)
+            hOleBase = LoadLibraryW(L"olebase.dll");
+    }
+
+    if (hOleBase)
+    {
+        pCoDisconnectContext = (PFNCoDisconnectContext)
+            GetProcAddress(hOleBase, "CoDisconnectContext");
+
+        if (pCoDisconnectContext)
+            return pCoDisconnectContext(dwTimeout);
+    }
+
+    return S_OK;
 }
 
 /***********************************************************************
@@ -43,7 +64,27 @@ CoDisconnectContext(
  */
 HRESULT WINAPI CoGetActivationState(GUID guid, DWORD unknown, DWORD *unknown2)
 {
-	DbgPrint("CoGetActivationState called\n");
+    static HMODULE hOleBase = NULL;
+    PFNCoGetActivationState pCoGetActivationState;
+
+    DbgPrint("CoGetActivationState called\n");
+
+    if (!hOleBase)
+    {
+        hOleBase = GetModuleHandleW(L"olebase.dll");
+        if (!hOleBase)
+            hOleBase = LoadLibraryW(L"olebase.dll");
+    }
+
+    if (hOleBase)
+    {
+        pCoGetActivationState = (PFNCoGetActivationState)
+            GetProcAddress(hOleBase, "CoGetActivationState");
+
+        if (pCoGetActivationState)
+            return pCoGetActivationState(guid, unknown, unknown2);
+    }
+
     return E_NOTIMPL;
 }
 
@@ -52,24 +93,62 @@ HRESULT WINAPI CoGetActivationState(GUID guid, DWORD unknown, DWORD *unknown2)
  */
 HRESULT WINAPI CoGetCallState(int unknown, PULONG unknown2)
 {
-	DbgPrint("CoGetCallState called\n");	
+    static HMODULE hOleBase = NULL;
+    PFNCoGetCallState pCoGetCallState;
+
+    DbgPrint("CoGetCallState called\n");
+
+    if (!hOleBase)
+    {
+        hOleBase = GetModuleHandleW(L"olebase.dll");
+        if (!hOleBase)
+            hOleBase = LoadLibraryW(L"olebase.dll");
+    }
+
+    if (hOleBase)
+    {
+        pCoGetCallState = (PFNCoGetCallState)
+            GetProcAddress(hOleBase, "CoGetCallState");
+
+        if (pCoGetCallState)
+            return pCoGetCallState(unknown, unknown2);
+    }
+
     return E_NOTIMPL;
 }
 
-// HRESULT WINAPI CoRegisterActivationFilter(IActivationFilter *pActivationFilter)
-// {
-  // IActivationFilter *activationFilter; // rax
-  
-  // DbgPrint("CoRegisterActivationFilter called\n");
+HRESULT WINAPI CoRegisterActivationFilter(IActivationFilter *pActivationFilter)
+{
+    IActivationFilter *activationFilter; // rax
+    static HMODULE hOleBase = NULL;
+    PFNCoRegisterActivationFilter pCoRegisterActivationFilter;
 
-  // if ( !pActivationFilter )
-    // return 0x80070057;
-  // activationFilter = (IActivationFilter *)_InterlockedCompareExchange64(
-                                            // (signed __int64*)&globalActivationFilter,
-                                            // (signed __int64)pActivationFilter,
-                                            // 0i64);
-  // if ( !activationFilter || activationFilter == pActivationFilter )
-    // return 0;
-  // else
-    // return 0x80004021;
-// }
+    DbgPrint("CoRegisterActivationFilter called\n");
+
+    if (!hOleBase)
+    {
+        hOleBase = GetModuleHandleW(L"olebase.dll");
+        if (!hOleBase)
+            hOleBase = LoadLibraryW(L"olebase.dll");
+    }
+
+    if (hOleBase)
+    {
+        pCoRegisterActivationFilter = (PFNCoRegisterActivationFilter)
+            GetProcAddress(hOleBase, "CoRegisterActivationFilter");
+
+        if (pCoRegisterActivationFilter)
+            return pCoRegisterActivationFilter(pActivationFilter);
+    } 
+
+  if ( !pActivationFilter )
+    return 0x80070057;
+  activationFilter = (IActivationFilter *)_InterlockedCompareExchange64(
+                                            (signed __int64*)&globalActivationFilter,
+                                            (signed __int64)pActivationFilter,
+                                            0i64);
+  if ( !activationFilter || activationFilter == pActivationFilter )
+    return 0;
+  else
+    return 0x80004021;
+}

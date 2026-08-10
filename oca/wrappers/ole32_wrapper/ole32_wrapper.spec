@@ -336,9 +336,9 @@
 ; @ stdcall StgSerializePropVariant(ptr ptr ptr) propsys.StgSerializePropVariant
 ; @ stdcall VariantToPropVariant(ptr ptr) propsys.VariantToPropVariant
 
-#winVista functions support
-@ stdcall OleConvertOLESTREAMToIStorage2(long ptr ptr wstr long long)
-@ stdcall OleConvertOLESTREAMToIStorageEx2(long ptr ptr ptr ptr ptr wstr long long)
+#win Vista functions support
+@ stdcall OleConvertOLESTREAMToIStorage2(long ptr ptr wstr long long) olebase.OleConvertOLESTREAMToIStorage2
+@ stdcall OleConvertOLESTREAMToIStorageEx2(long ptr ptr ptr ptr ptr wstr long long) olebase.OleConvertOLESTREAMToIStorageEx2
 
 #win7 functions
 @ stdcall CoDecrementMTAUsage(ptr)
@@ -372,7 +372,7 @@
 @ stdcall ComPs_NdrCStdStubBuffer_Release(ptr ptr) olebase.ComPs_NdrCStdStubBuffer_Release
 @ stdcall ComPs_NdrStubCall2(ptr ptr ptr ptr) olebase.ComPs_NdrStubCall2
 @ stdcall ComPs_NdrStubForwardingFunction(ptr ptr ptr ptr) olebase.ComPs_NdrStubForwardingFunction 
-@ stdcall CoRegisterActivationFilter(ptr) olebase.CoRegisterActivationFilter
+@ stdcall CoRegisterActivationFilter(ptr)
 
 #for XP x64
 @ stdcall -arch=x86_64 CLIPFORMAT_UserFree64(ptr ptr) olebase.CLIPFORMAT_UserFree64
