@@ -1,1 +1,4 @@
 credui_wrapper
+wintrust_wrapper
+crypt32_wrapper
+schannel_wrapper
