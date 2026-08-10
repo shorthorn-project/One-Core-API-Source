@@ -467,9 +467,9 @@
 
 
 @ stdcall -stub SHGetKnownFolderPath(ptr long ptr ptr)
-758 stub GetCurrentProcessExplicitAppUserModelID
-759 stub SetCurrentProcessExplicitAppUserModelID
-760 stub SHSetKnownFolderPath
+#758 stub GetCurrentProcessExplicitAppUserModelID
+#759 stub SetCurrentProcessExplicitAppUserModelID
+#760 stub SHSetKnownFolderPath
 @ stdcall SHGetIDListFromObject(ptr ptr)
 @ stdcall SHCreateShellItemArray(ptr ptr long ptr ptr)
 @ stdcall SHCreateShellItemArrayFromShellItem(ptr ptr ptr)
