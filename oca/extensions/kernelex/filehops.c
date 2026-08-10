@@ -643,7 +643,7 @@ BOOL WINAPI DECLSPEC_HOTPATCH CancelIoEx(HANDLE hFile, LPOVERLAPPED lpOverlapped
     DWORD Cancelled = 0;
     
     if (lpOverlapped != NULL) {
-        SetLastError(STATUS_NOT_IMPLEMENTED);
+        TRACE("CancelIoEx: lpOverlapped NOT SUPPORTED! The application might not work as expected!");
         return FALSE;
     }
     
