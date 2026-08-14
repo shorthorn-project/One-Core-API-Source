@@ -7,14 +7,14 @@
 @ stdcall CryptCATAdminAcquireContext2(ptr ptr wstr ptr long)
 @ stdcall CryptCATAdminAddCatalog(long wstr wstr long)
 @ stdcall CryptCATAdminCalcHashFromFileHandle(long ptr ptr long)
-#@ stub CryptCATAdminCalcHashFromFileHandle2
+@ stdcall -stub CryptCATAdminCalcHashFromFileHandle2(ptr ptr ptr ptr long)
 @ stdcall CryptCATAdminEnumCatalogFromHash(long ptr long long ptr)
 @ stdcall -stub CryptCATAdminPauseServiceForBackup(long long)
 @ stdcall CryptCATAdminReleaseCatalogContext(long long long)
 @ stdcall CryptCATAdminReleaseContext(long long)
 @ stdcall CryptCATAdminRemoveCatalog(ptr wstr long)
 @ stdcall CryptCATAdminResolveCatalogPath(ptr wstr ptr long)
-#@ stub CryptCATAllocSortedMemberInfo
+@ stdcall -stub CryptCATAllocSortedMemberInfo(ptr wstr)
 @ stdcall CryptCATCDFClose(ptr)
 @ stdcall -stub CryptCATCDFEnumAttributes(ptr ptr ptr ptr)
 @ stdcall -stub CryptCATCDFEnumAttributesWithCDFTag(ptr wstr ptr ptr ptr)
@@ -28,7 +28,7 @@
 @ stdcall CryptCATEnumerateAttr(ptr ptr ptr)
 @ stdcall CryptCATEnumerateCatAttr(ptr ptr)
 @ stdcall CryptCATEnumerateMember(long ptr)
-#@ stub CryptCATFreeSortedMemberInfo
+@ stdcall -stub CryptCATFreeSortedMemberInfo(ptr ptr)
 @ stdcall CryptCATGetAttrInfo(ptr ptr wstr)
 @ stdcall CryptCATGetCatAttrInfo(ptr wstr )
 @ stdcall CryptCATGetMemberInfo(ptr wstr)
@@ -41,7 +41,7 @@
 @ stdcall -stub CryptCATStoreFromHandle(ptr)
 @ stdcall -stub CryptCATVerifyMember(ptr ptr ptr)
 @ stdcall CryptSIPCreateIndirectData(ptr ptr ptr)
-#@ stub CryptSIPGetCaps
+@ stdcall -stub CryptSIPGetCaps(ptr ptr)
 @ stdcall -stub CryptSIPGetInfo(ptr)
 @ stdcall -stub CryptSIPGetRegWorkingFlags(ptr)
 #@ stub CryptSIPGetSealedDigest
@@ -49,8 +49,8 @@
 @ stdcall CryptSIPPutSignedDataMsg(ptr long ptr long ptr)
 @ stdcall CryptSIPRemoveSignedDataMsg(ptr long)
 @ stdcall CryptSIPVerifyIndirectData(ptr ptr)
-@ stdcall -private DllRegisterServer()
-@ stdcall -private DllUnregisterServer()
+@ stdcall DllRegisterServer()
+@ stdcall DllUnregisterServer()
 @ stdcall DriverCleanupPolicy(ptr)
 @ stdcall DriverFinalPolicy(ptr)
 @ stdcall DriverInitializePolicy(ptr)
@@ -84,17 +84,17 @@
 @ stdcall -stub TrustFindIssuerCertificate(ptr long long ptr ptr ptr ptr )
 @ stdcall -stub TrustFreeDecode(ptr long)
 @ stdcall TrustIsCertificateSelfSigned(ptr)
-@ stub TrustOpenStores
+@ stdcall -stub TrustOpenStores(ptr ptr ptr long)
 #@ stub WTGetBioSignatureInfo
 #@ stub WTGetPluginSignatureInfo
 #@ stub WTGetSignatureInfo
 @ stdcall WTHelperCertCheckValidSignature(ptr)
 @ stdcall -stub WTHelperCertFindIssuerCertificate(ptr long ptr ptr long ptr ptr)
-@ stub WTHelperCertIsSelfSigned
-@ stub WTHelperCheckCertUsage
-@ stub WTHelperGetAgencyInfo
+@ stdcall -stub WTHelperCertIsSelfSigned(long ptr)
+@ stdcall -stub WTHelperCheckCertUsage(ptr str)
+@ stdcall -stub WTHelperGetAgencyInfo(ptr ptr ptr)
 @ stdcall WTHelperGetFileHandle(ptr)
-@ stub WTHelperGetFileHash
+@ stdcall -stub WTHelperGetFileHash(wstr long ptr ptr ptr ptr)
 @ stdcall WTHelperGetFileName(ptr)
 @ stdcall WTHelperGetKnownUsages(long ptr)
 @ stdcall WTHelperGetProvCertFromChain(ptr long)
@@ -102,15 +102,15 @@
 @ stdcall WTHelperGetProvSignerFromChain(ptr long long long)
 #@ stub WTHelperIsChainedToMicrosoft
 #@ stub WTHelperIsChainedToMicrosoftFromStateData
-@ stub WTHelperIsInRootStore
-@ stub WTHelperOpenKnownStores
+@ stdcall -stub WTHelperIsInRootStore(ptr ptr)
+@ stdcall -stub WTHelperOpenKnownStores(ptr)
 @ stdcall WTHelperProvDataFromStateData(ptr)
 #@ stub WTIsFirstConfigCiResultPreferred
 #@ stub WTLogConfigCiScriptEvent
 #@ stub WTLogConfigCiSignerEvent
 #@ stub WTValidateBioSignaturePolicy
-#@ stub WVTAsn1CatMemberInfo2Decode
-#@ stub WVTAsn1CatMemberInfo2Encode
+@ stdcall -stub WVTAsn1CatMemberInfo2Decode(long long ptr long long ptr ptr)
+@ stdcall -stub WVTAsn1CatMemberInfo2Encode(long long ptr ptr ptr)
 @ stdcall WVTAsn1CatMemberInfoDecode(long str ptr long long ptr ptr)
 @ stdcall WVTAsn1CatMemberInfoEncode(long str ptr ptr ptr)
 @ stdcall WVTAsn1CatNameValueDecode(long str ptr long long ptr ptr)
@@ -148,7 +148,7 @@
 @ stdcall WintrustGetRegPolicyFlags(ptr)
 @ stdcall WintrustLoadFunctionPointers(ptr ptr)
 @ stdcall WintrustRemoveActionID(ptr)
-#@ stub WintrustSetDefaultIncludePEPageHashes
+@ stdcall -stub WintrustSetDefaultIncludePEPageHashes(long)
 @ stdcall WintrustSetRegPolicyFlags(long)
 @ stdcall mscat32DllRegisterServer()
 @ stdcall mscat32DllUnregisterServer()

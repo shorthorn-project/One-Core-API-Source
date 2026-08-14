@@ -8,7 +8,7 @@ list(APPEND SOURCE
     crypt.c
     register.c
     softpub.c
-    wintrustbase.c
+    wintrust_main.c
     precomp.h
     ${CMAKE_CURRENT_BINARY_DIR}/wintrustbase_stubs.c)
 
