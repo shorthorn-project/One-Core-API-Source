@@ -623,9 +623,9 @@ BOOL WINAPI ShellExecuteExWHook(
 // This affects Java installers after around JDK 8u152, plus tons and tons of other installers.
 // Some programs handle it by only passing the X86 csidl's on 64-bit systems, but not all of them.
 NTSTATUS WINAPI SHGetFolderPathWHook(HWND hwnd, int csidl, HANDLE hToken, DWORD dwFlags, LPWSTR pszPath) {
-	DbgPrint("SHGetFolderPathWHook called\n");
-	DbgPrint("SHGetFolderPathWHook::csidl %i\n", csidl);
-	DbgPrint("SHGetFolderPathWHook::flags %d\n", dwFlags);
+	// DbgPrint("SHGetFolderPathWHook called\n");
+	// DbgPrint("SHGetFolderPathWHook::csidl %i\n", csidl);
+	// DbgPrint("SHGetFolderPathWHook::flags %d\n", dwFlags);
 //#ifdef _M_IX86
     if (csidl & 0xFF == CSIDL_PROGRAM_FILES_COMMONX86) {
         csidl &= ~0xFF;
