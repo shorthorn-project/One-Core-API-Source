@@ -1,14 +1,14 @@
 
 add_definitions(-D__WINESRC__)
 include_directories(BEFORE ${REACTOS_SOURCE_DIR}/sdk/include/reactos/wine)
-spec2def(version.dll version.spec ADD_IMPORTLIB)
+spec2def(versionbase.dll versionbase.spec ADD_IMPORTLIB)
 
 list(APPEND SOURCE
-    version.c
-    ${CMAKE_CURRENT_BINARY_DIR}/version.def)
+    versionbase.c
+    ${CMAKE_CURRENT_BINARY_DIR}/versionbase.def)
 
-add_library(version MODULE ${SOURCE} version.rc)
-set_module_type(version win32dll)
-target_link_libraries(version wine)
-add_importlibs(version msvcrt kernel32 ntdll)
-add_cd_file(TARGET version DESTINATION reactos/system32 FOR all)
+add_library(versionbase MODULE ${SOURCE} versionbase.rc)
+set_module_type(versionbase win32dll)
+target_link_libraries(versionbase wine)
+add_importlibs(versionbase msvcrt kernel32 ntdll)
+add_cd_file(TARGET versionbase DESTINATION reactos/system32 FOR all)
