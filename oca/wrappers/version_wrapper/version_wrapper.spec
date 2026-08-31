@@ -13,4 +13,6 @@
 @ stdcall VerLanguageNameA(long str long) kernel32.VerLanguageNameA
 @ stdcall VerLanguageNameW(long wstr long) kernel32.VerLanguageNameW
 @ stdcall VerQueryValueA(ptr str ptr ptr)
+@ stdcall VerQueryValueIndexA(ptr str long ptr ptr ptr) versionbase.VerQueryValueIndexA
+@ stdcall VerQueryValueIndexW(ptr wstr long ptr ptr ptr) versionbase.VerQueryValueIndexW
 @ stdcall VerQueryValueW(ptr wstr ptr ptr)

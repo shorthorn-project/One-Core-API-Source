@@ -3,6 +3,8 @@ add_definitions(-D__WINESRC__)
 include_directories(BEFORE ${REACTOS_SOURCE_DIR}/sdk/include/reactos/wine)
 spec2def(version_wrapper.dll version_wrapper.spec ADD_IMPORTLIB)
 
+set(baseaddress_version_wrapper     0x720D0000)
+
 list(APPEND SOURCE
     main.c
     ${CMAKE_CURRENT_BINARY_DIR}/version_wrapper.def)

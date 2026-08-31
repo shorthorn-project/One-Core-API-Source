@@ -12,6 +12,7 @@ add_subdirectory(d3dkmt)
 add_subdirectory(dnsapibase)
 add_subdirectory(fileextd)
 add_subdirectory(gdibase)
+add_subdirectory(httpapibase)
 #on future reactos releases, maybe it need be disabled
 add_subdirectory(idndl)
 #end
