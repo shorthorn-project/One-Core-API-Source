@@ -107,6 +107,7 @@ typedef enum EFFECTIVE_POWER_MODE
 
 UINT g_LastID = (UINT)-1;
 
+static DWORD (WINAPI *pPowerCanRestoreIndividualDefaultPowerScheme)(const GUID*) = NULL;
 static POWER_PLATFORM_ROLE (WINAPI *pPowerDeterminePlatformRole)(void) = NULL;
 static POWER_PLATFORM_ROLE (WINAPI *pPowerDeterminePlatformRoleEx)(ulong) = NULL;
 static DWORD (WINAPI *pPowerEnumerate)(HKEY,const GUID*,const GUID*,POWER_DATA_ACCESSOR,ULONG,UCHAR*,DWORD*) = NULL;
@@ -116,6 +117,7 @@ static DWORD (WINAPI *pPowerReadDCValue)(HKEY,const GUID*,const GUID*,const GUID
 static DWORD (WINAPI *pPowerReadACValueIndex)(HKEY,const GUID*,const GUID*,const GUID*,LPDWORD) = NULL;
 static DWORD (WINAPI *pPowerReadDCValueIndex)(HKEY,const GUID*,const GUID*,const GUID*,LPDWORD) = NULL;
 static DWORD (WINAPI *pPowerReadFriendlyName)(HKEY,const GUID*,const GUID*,const GUID*,UCHAR*,DWORD*) = NULL;
+static DWORD (WINAPI *pPowerRestoreIndividualDefaultPowerScheme)(const GUID*) = NULL;
 static DWORD (WINAPI *pPowerSetActiveScheme)(HKEY,const GUID*) = NULL;
 static DWORD (WINAPI *pPowerRegisterSuspendResumeNotification)(DWORD, HANDLE, PHPOWERNOTIFY) = NULL;
 static DWORD (WINAPI *pPowerRegisterForEffectivePowerModeNotifications)(ULONG, PVOID, void *, void *) = NULL;
@@ -140,6 +142,9 @@ static void InitPowrProf(void)
 
     // if (!hPowrProf)
         // return;
+
+	pPowerCanRestoreIndividualDefaultPowerScheme =
+		(void *)GetProcAddress(hPowrProf, "PowerCanRestoreIndividualDefaultPowerScheme");
 
     pPowerDeterminePlatformRole =
         (void *)GetProcAddress(hPowrProf, "PowerDeterminePlatformRole");
@@ -167,6 +172,9 @@ static void InitPowrProf(void)
 
     pPowerReadFriendlyName =
         (void *)GetProcAddress(hPowrProf, "PowerReadFriendlyName");
+
+	pPowerRestoreIndividualDefaultPowerScheme =
+		(void *)GetProcAddress(hPowrProf, "PowerRestoreIndividualDefaultPowerScheme");
 
     pPowerSetActiveScheme =
         (void *)GetProcAddress(hPowrProf, "PowerSetActiveScheme");
@@ -209,6 +217,17 @@ BOOL WINAPI DllMain(HINSTANCE hInstDLL, DWORD fdwReason, LPVOID lpv)
     }
 
     return TRUE;
+}
+
+DWORD WINAPI
+PowerCanRestoreIndividualDefaultPowerScheme(const GUID *SchemeGuid)
+{
+	if (pPowerCanRestoreIndividualDefaultPowerScheme)
+	{
+		return pPowerCanRestoreIndividualDefaultPowerScheme(SchemeGuid);
+	}
+
+	return ERROR_CALL_NOT_IMPLEMENTED;
 }
 
 DWORD WINAPI
@@ -396,6 +415,16 @@ PowerReadFriendlyName(
 							          BufferSize);
 	}
 	
+	return ERROR_CALL_NOT_IMPLEMENTED;
+}
+
+DWORD WINAPI PowerRestoreIndividualDefaultPowerScheme(const GUID *SchemeGuid)
+{
+	if (pPowerRestoreIndividualDefaultPowerScheme)
+	{
+		return pPowerRestoreIndividualDefaultPowerScheme(SchemeGuid);
+	}
+
 	return ERROR_CALL_NOT_IMPLEMENTED;
 }
 

@@ -23,6 +23,7 @@
 #@ stdcall MergeLegacyPwrScheme(ptr ptr str long) powrprofbase.MergeLegacyPwrScheme
 
 #Vista Functions
+@ stdcall PowerCanRestoreIndividualDefaultPowerScheme(ptr)
 @ stdcall PowerDeterminePlatformRole()
 @ stdcall PowerEnumerate(long ptr ptr long long ptr ptr)
 @ stdcall PowerGetActiveScheme(ptr ptr)
@@ -31,6 +32,7 @@
 @ stdcall PowerReadACValueIndex(ptr ptr ptr ptr long)
 @ stdcall PowerReadDCValueIndex(ptr ptr ptr ptr long)
 @ stdcall PowerReadFriendlyName(ptr ptr ptr ptr ptr ptr)
+@ stdcall PowerRestoreIndividualDefaultPowerScheme(ptr)
 @ stdcall PowerSetActiveScheme(ptr ptr)
 @ stdcall PowerSettingRegisterNotification(ptr long ptr ptr)
 @ stdcall PowerSettingUnregisterNotification(ptr)
