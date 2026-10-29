@@ -288,72 +288,14 @@ struct algorithm
     BOOL hmac;
 };
 
-/* Algorithm pseudo-handles have the low bit set, so they can never be an
- * aligned pointer. The index is handle >> 4 and matches the
- * BCRYPT_*_ALG_HANDLE values in bcrypt.h. The table layout follows Wine
- * dlls/bcrypt/bcrypt_main.c. Slots this build does not implement stay zero
- * and are never dereferenced. 58 entries cover every pseudo-handle through
- * BCRYPT_HKDF_ALG_HANDLE (0x391).
- */
-static const struct algorithm pseudo_algorithms[58] =
-{
-    {{ 0 }},                                              /* 0x01 MD2 */
-    {{ 0 }},                                              /* 0x11 MD4 */
-    {{ MAGIC_ALG }, ALG_ID_MD5, FALSE },                  /* 0x21 */
-    {{ MAGIC_ALG }, ALG_ID_SHA1, FALSE },                 /* 0x31 */
-    {{ MAGIC_ALG }, ALG_ID_SHA256, FALSE },               /* 0x41 */
-    {{ MAGIC_ALG }, ALG_ID_SHA384, FALSE },               /* 0x51 */
-    {{ MAGIC_ALG }, ALG_ID_SHA512, FALSE },               /* 0x61 */
-    {{ 0 }},                                              /* 0x71 RC4 */
-    {{ MAGIC_ALG }, ALG_ID_RNG, FALSE },                  /* 0x81 */
-    {{ MAGIC_ALG }, ALG_ID_MD5, TRUE },                   /* 0x91 HMAC MD5 */
-    {{ MAGIC_ALG }, ALG_ID_SHA1, TRUE },                  /* 0xa1 */
-    {{ MAGIC_ALG }, ALG_ID_SHA256, TRUE },                /* 0xb1 */
-    {{ MAGIC_ALG }, ALG_ID_SHA384, TRUE },                /* 0xc1 */
-    {{ MAGIC_ALG }, ALG_ID_SHA512, TRUE },                /* 0xd1 */
-};
-
-static BOOL is_alg_pseudo_handle( BCRYPT_ALG_HANDLE handle )
-{
-    return (((ULONG_PTR)handle & 1) == 1);
-}
-
-static struct object *get_object( BCRYPT_HANDLE handle, ULONG magic )
-{
-    ULONG_PTR idx;
-
-    if (!handle) return NULL;
-
-    if (!is_alg_pseudo_handle( handle ))
-    {
-        struct object *obj = handle;
-        if (magic && obj->magic != magic) return NULL;
-        return obj;
-    }
-
-    idx = (ULONG_PTR)handle >> 4;
-    if (idx >= sizeof(pseudo_algorithms) / sizeof(pseudo_algorithms[0]) ||
-        !pseudo_algorithms[idx].hdr.magic)
-    {
-        FIXME( "pseudo-handle %p not supported\n", handle );
-        return NULL;
-    }
-    return (struct object *)&pseudo_algorithms[idx];
-}
-
-static struct algorithm *get_alg_object( BCRYPT_ALG_HANDLE handle )
-{
-    return (struct algorithm *)get_object( handle, MAGIC_ALG );
-}
-
 NTSTATUS WINAPI BCryptGenRandom(BCRYPT_ALG_HANDLE handle, UCHAR *buffer, ULONG count, ULONG flags)
 {
     const DWORD supported_flags = BCRYPT_USE_SYSTEM_PREFERRED_RNG;
-    const struct algorithm *algorithm = get_alg_object( handle );
+    struct algorithm *algorithm = handle;
 
     TRACE("%p, %p, %u, %08x - semi-stub\n", handle, buffer, count, flags);
 
-    if (!handle)
+    if (!algorithm)
     {
         /* It's valid to call without an algorithm if BCRYPT_USE_SYSTEM_PREFERRED_RNG
          * is set. In this case the preferred system RNG is used.
@@ -361,12 +303,7 @@ NTSTATUS WINAPI BCryptGenRandom(BCRYPT_ALG_HANDLE handle, UCHAR *buffer, ULONG c
         if (!(flags & BCRYPT_USE_SYSTEM_PREFERRED_RNG))
             return STATUS_INVALID_HANDLE;
     }
-    else if (is_alg_pseudo_handle( handle ) && handle != BCRYPT_RNG_ALG_HANDLE)
-    {
-        FIXME( "pseudo-handle %p not supported\n", handle );
-        return STATUS_NOT_IMPLEMENTED;
-    }
-    else if (!algorithm || algorithm->id != ALG_ID_RNG)
+    else if (algorithm->hdr.magic != MAGIC_ALG || algorithm->id != ALG_ID_RNG)
         return STATUS_INVALID_HANDLE;
 
     if (!buffer)
@@ -440,8 +377,7 @@ NTSTATUS WINAPI BCryptCloseAlgorithmProvider( BCRYPT_ALG_HANDLE handle, DWORD fl
 
     TRACE( "%p, %08x\n", handle, flags );
 
-    if (!handle || is_alg_pseudo_handle( handle ) || alg->hdr.magic != MAGIC_ALG)
-        return STATUS_INVALID_HANDLE;
+    if (!alg || alg->hdr.magic != MAGIC_ALG) return STATUS_INVALID_HANDLE;
     HeapFree( GetProcessHeap(), 0, alg );
     return STATUS_SUCCESS;
 }
@@ -1035,7 +971,7 @@ static NTSTATUS get_hash_property( enum alg_id id, const WCHAR *prop, UCHAR *buf
 
 NTSTATUS WINAPI BCryptGetProperty( BCRYPT_HANDLE handle, LPCWSTR prop, UCHAR *buffer, ULONG count, ULONG *res, ULONG flags )
 {
-    struct object *object = get_object( handle, 0 );
+    struct object *object = handle;
 
     TRACE( "%p, %s, %p, %u, %p, %08x\n", handle, wine_dbgstr_w(prop), buffer, count, res, flags );
 
@@ -1063,7 +999,7 @@ NTSTATUS WINAPI BCryptGetProperty( BCRYPT_HANDLE handle, LPCWSTR prop, UCHAR *bu
 NTSTATUS WINAPI BCryptCreateHash( BCRYPT_ALG_HANDLE algorithm, BCRYPT_HASH_HANDLE *handle, UCHAR *object, ULONG objectlen,
                                   UCHAR *secret, ULONG secretlen, ULONG flags )
 {
-    struct algorithm *alg = get_alg_object( algorithm );
+    struct algorithm *alg = algorithm;
     struct hash *hash;
     NTSTATUS status;
 

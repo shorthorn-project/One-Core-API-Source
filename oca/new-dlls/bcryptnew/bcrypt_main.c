@@ -196,7 +196,7 @@ static const struct algorithm pseudo_algorithms[58] =
     {{ MAGIC_ALG }, ALG_ID_RSA },                                          /* 0xe1 */
     {{ 0 }},                                                               /* 0xf1 ECDSA */
     {{ 0 }},                                                               /* 0x101 AES_CMAC */
-    {{ MAGIC_ALG }, ALG_ID_AES, MODE_ID_GCM },                             /* 0x111 AES_GMAC */
+    {{ 0 }},                                                               /* 0x111 AES_GMAC: not implemented */
     {{ MAGIC_ALG }, ALG_ID_MD2, 0, BCRYPT_ALG_HANDLE_HMAC_FLAG },          /* 0x121 */
     {{ MAGIC_ALG }, ALG_ID_MD4, 0, BCRYPT_ALG_HANDLE_HMAC_FLAG },          /* 0x131 */
     {{ MAGIC_ALG }, ALG_ID_3DES, MODE_ID_CBC },                            /* 0x141 */

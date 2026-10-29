@@ -57,16 +57,6 @@ static void test_BCryptGenRandom(void)
     ret = BCryptGenRandom(NULL, buffer, 8, BCRYPT_USE_SYSTEM_PREFERRED_RNG);
     ok(ret == STATUS_SUCCESS, "Expected success, got 0x%x\n", ret);
     ok(memcmp(buffer, buffer + 8, 8), "Expected a random number, got 0\n");
-
-    /* Windows 10 pseudo-handle. Must not be dereferenced (0x81 is not a pointer). */
-    memset(buffer, 0, 16);
-    ret = BCryptGenRandom(BCRYPT_RNG_ALG_HANDLE, buffer, 8, 0);
-    ok(ret == STATUS_SUCCESS, "Expected success, got 0x%x\n", ret);
-    ok(memcmp(buffer, buffer + 8, 8), "Expected a random number, got 0\n");
-
-    /* Windows returns STATUS_INVALID_HANDLE and does not free the pseudo-handle. */
-    ret = BCryptCloseAlgorithmProvider(BCRYPT_RNG_ALG_HANDLE, 0);
-    ok(ret == STATUS_INVALID_HANDLE, "Expected STATUS_INVALID_HANDLE, got 0x%x\n", ret);
 }
 
 static void test_BCryptGetFipsAlgorithmMode(void)
@@ -695,20 +685,6 @@ static void test_md5(void)
     ok(ret == STATUS_SUCCESS, "got %08x\n", ret);
 }
 
-static void test_pseudo_hash(void)
-{
-    static const UCHAR expected[32] = {
-        0xba,0x78,0x16,0xbf,0x8f,0x01,0xcf,0xea,0x41,0x41,0x40,0xde,0x5d,0xae,0x22,0x23,
-        0xb0,0x03,0x61,0xa3,0x96,0x17,0x7a,0x9c,0xb4,0x10,0xff,0x61,0xf2,0x00,0x15,0xad };
-    UCHAR sha256[32];
-    NTSTATUS ret;
-
-    memset(sha256, 0, sizeof(sha256));
-    ret = pBCryptHash(BCRYPT_SHA256_ALG_HANDLE, NULL, 0, (UCHAR *)"abc", 3, sha256, sizeof(sha256));
-    ok(ret == STATUS_SUCCESS, "got %08x\n", ret);
-    ok(!memcmp(sha256, expected, sizeof(expected)), "wrong sha256 digest\n");
-}
-
 static void test_BcryptHash(void)
 {
     static const char expected[] =
@@ -798,10 +774,7 @@ START_TEST(bcrypt)
     pBCryptHash = (void *)GetProcAddress( module, "BCryptHash" );
 
     if (pBCryptHash)
-    {
         test_BcryptHash();
-        test_pseudo_hash();
-    }
     else
         win_skip("BCryptHash is not available\n");
 }
